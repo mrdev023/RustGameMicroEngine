@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use vulkano::sync::GpuFuture;
 use vulkano::command_buffer::CommandBuffer;
 use vulkano::command_buffer::AutoCommandBufferBuilder;
@@ -7,14 +8,51 @@ use vulkano::device::DeviceExtensions;
 use vulkano::device::Features;
 use vulkano::device::Device;
 use vulkano::instance::PhysicalDevice;
+use vulkano::instance::PhysicalDeviceType;
 use vulkano::instance::Instance;
 use vulkano::instance::InstanceExtensions;
+
+#[cfg(debug_assertions)]
+fn get_physical_device<'a>(instance: &'a Arc<Instance>) -> Option<PhysicalDevice<'a>> {
+    println!("###################################### PRINT PHYSICAL DEVICES ######################################");
+    for physical_device in PhysicalDevice::enumerate(instance) {
+        println!("Available device: {} (type: {:?})", physical_device.name(), physical_device.ty());
+    }
+    let physical_device = match PhysicalDevice::enumerate(instance).find(|physical_device| physical_device.ty() == PhysicalDeviceType::DiscreteGpu) {
+        Some(physical_device) => Some(physical_device),
+        None => match PhysicalDevice::enumerate(instance).next() {
+            Some(physical_device) => Some(physical_device),
+            None => None
+        }
+    };
+    match physical_device {
+        Some(physical_device) => println!(
+            "--- Using device: {} (type: {:?})",
+            physical_device.name(),
+            physical_device.ty()
+        ),
+        None => println!("--- Error: No device found")
+    }
+    println!("####################################### END PHYSICAL DEVICES #######################################");
+    physical_device
+}
+
+#[cfg(not(debug_assertions))]
+fn get_physical_device<'a>(instance: &'a Arc<Instance>) -> Option<PhysicalDevice<'a>> {
+    match PhysicalDevice::enumerate(instance).find(|physical_device| physical_device.ty() == PhysicalDeviceType::DiscreteGpu) {
+        Some(physical_device) => Some(physical_device),
+        None => match PhysicalDevice::enumerate(instance).next() {
+            Some(physical_device) => Some(physical_device),
+            None => None
+        }
+    }
+}
 
 pub fn test() {
     let instance = Instance::new(None, &InstanceExtensions::none(), None)
                         .expect("Failed to create instance");
 
-    let physical = PhysicalDevice::enumerate(&instance).next().expect("No device available");
+    let physical = get_physical_device(&instance).unwrap();
 
     let queue_family = physical.queue_families()
                             .find(|&q| q.supports_graphics())
