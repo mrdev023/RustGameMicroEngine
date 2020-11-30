@@ -11,41 +11,34 @@ use vulkano::instance::PhysicalDevice;
 use vulkano::instance::PhysicalDeviceType;
 use vulkano::instance::Instance;
 use vulkano::instance::InstanceExtensions;
+use vulkano::image::{StorageImage, Dimensions};
+use vulkano::format::{Format, ClearValue};
+use image::{ImageBuffer, Rgba};
 
-#[cfg(debug_assertions)]
-fn get_physical_device<'a>(instance: &'a Arc<Instance>) -> Option<PhysicalDevice<'a>> {
-    println!("###################################### PRINT PHYSICAL DEVICES ######################################");
-    for physical_device in PhysicalDevice::enumerate(instance) {
-        println!("Available device: {} (type: {:?})", physical_device.name(), physical_device.ty());
-    }
-    let physical_device = match PhysicalDevice::enumerate(instance).find(|physical_device| physical_device.ty() == PhysicalDeviceType::DiscreteGpu) {
-        Some(physical_device) => Some(physical_device),
-        None => match PhysicalDevice::enumerate(instance).next() {
-            Some(physical_device) => Some(physical_device),
-            None => None
-        }
-    };
-    match physical_device {
-        Some(physical_device) => println!(
-            "--- Using device: {} (type: {:?})",
-            physical_device.name(),
-            physical_device.ty()
-        ),
-        None => println!("--- Error: No device found")
-    }
-    println!("####################################### END PHYSICAL DEVICES #######################################");
-    physical_device
-}
-
-#[cfg(not(debug_assertions))]
-fn get_physical_device<'a>(instance: &'a Arc<Instance>) -> Option<PhysicalDevice<'a>> {
-    match PhysicalDevice::enumerate(instance).find(|physical_device| physical_device.ty() == PhysicalDeviceType::DiscreteGpu) {
-        Some(physical_device) => Some(physical_device),
-        None => match PhysicalDevice::enumerate(instance).next() {
-            Some(physical_device) => Some(physical_device),
-            None => None
+fn get_physical_device(instance: &Arc<Instance>) -> Option<PhysicalDevice> {
+    #[cfg(debug_assertions)]
+    {
+        println!("###################################### PRINT PHYSICAL DEVICES ######################################");
+        for physical_device in PhysicalDevice::enumerate(instance) {
+            println!("Available device: {} (type: {:?})", physical_device.name(), physical_device.ty());
         }
     }
+    let physical_device = PhysicalDevice::enumerate(instance)
+        .find(|physical_device| physical_device.ty() == PhysicalDeviceType::DiscreteGpu)
+        .or_else(|| PhysicalDevice::enumerate(instance).next());
+    #[cfg(debug_assertions)]
+    {
+        match physical_device {
+            Some(physical_device) => println!(
+                "--- Using device: {} (type: {:?})",
+                physical_device.name(),
+                physical_device.ty()
+            ),
+            None => println!("--- Error: No device found")
+        }
+        println!("####################################### END PHYSICAL DEVICES #######################################");
+    }
+    Some(physical_device?)
 }
 
 pub fn test() {
@@ -65,24 +58,25 @@ pub fn test() {
 
     let queue = queues.next().unwrap();
 
-    let source_content = 0 .. 64;
-    let source = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false,
-                                            source_content).expect("failed to create buffer");
 
-    let dest_content = (0 .. 64).map(|_| 0);
-    let dest = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false,
-                                            dest_content).expect("failed to create buffer");
+    let image = StorageImage::new(device.clone(), Dimensions::Dim2d { width: 1024, height: 1024 },
+                                  Format::R8G8B8A8Unorm, Some(queue.family())).unwrap();
+
+    let buf = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false,
+                                             (0 .. 1024 * 1024 * 4).map(|_| 0u8))
+                                                        .expect("failed to create buffer");
 
     let mut builder = AutoCommandBufferBuilder::new(device.clone(), queue.family()).unwrap();
-    builder.copy_buffer(source.clone(), dest.clone()).unwrap();
+    builder
+        .clear_color_image(image.clone(), ClearValue::Float([0.0, 0.0, 1.0, 1.0])).unwrap()
+        .copy_image_to_buffer(image.clone(), buf.clone()).unwrap();
     let command_buffer = builder.build().unwrap();
 
     let finished = command_buffer.execute(queue.clone()).unwrap();
-
     finished.then_signal_fence_and_flush().unwrap()
-                        .wait(None).unwrap();
+        .wait(None).unwrap();
 
-    let src_content = source.read().unwrap();
-    let dest_content = dest.read().unwrap();
-    assert_eq!(&*src_content, &*dest_content);
+    let buffer_content = buf.read().unwrap();
+    let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &buffer_content[..]).unwrap();
+    image.save("image.png").unwrap();
 }
