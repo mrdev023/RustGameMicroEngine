@@ -1,80 +1,216 @@
+mod vertex;
+mod physical_device;
+
+pub use vertex::Vertex;
+use physical_device::get_physical_device;
+
+use image::ImageBuffer;
+use image::Rgba;
 use std::sync::Arc;
-use vulkano::sync::GpuFuture;
-use vulkano::command_buffer::CommandBuffer;
-use vulkano::command_buffer::AutoCommandBufferBuilder;
 use vulkano::buffer::BufferUsage;
 use vulkano::buffer::CpuAccessibleBuffer;
+use vulkano::command_buffer::AutoCommandBufferBuilder;
+use vulkano::command_buffer::CommandBuffer;
+use vulkano::command_buffer::DynamicState;
+use vulkano::device::{Device, QueuesIter, Queue};
 use vulkano::device::DeviceExtensions;
 use vulkano::device::Features;
-use vulkano::device::Device;
-use vulkano::instance::PhysicalDevice;
-use vulkano::instance::PhysicalDeviceType;
-use vulkano::instance::Instance;
+use vulkano::format::Format;
+use vulkano::framebuffer::Framebuffer;
+use vulkano::framebuffer::Subpass;
+use vulkano::image::Dimensions;
+use vulkano::image::StorageImage;
+use vulkano::instance::{Instance, PhysicalDeviceType, QueueFamily};
 use vulkano::instance::InstanceExtensions;
-use vulkano::image::{StorageImage, Dimensions};
-use vulkano::format::{Format, ClearValue};
-use image::{ImageBuffer, Rgba};
+use vulkano::instance::PhysicalDevice;
+use vulkano::pipeline::viewport::Viewport;
+use vulkano::pipeline::GraphicsPipeline;
+use vulkano::sync::GpuFuture;
 
-fn get_physical_device(instance: &Arc<Instance>) -> Option<PhysicalDevice> {
-    #[cfg(debug_assertions)]
-    {
-        println!("###################################### PRINT PHYSICAL DEVICES ######################################");
-        for physical_device in PhysicalDevice::enumerate(instance) {
-            println!("Available device: {} (type: {:?})", physical_device.name(), physical_device.ty());
-        }
+mod vs {
+    vulkano_shaders::shader!{
+        ty: "vertex",
+        src: "
+            #version 450
+
+            layout(location = 0) in vec2 position;
+
+            void main() {
+                gl_Position = vec4(position, 0.0, 1.0);
+            }"
     }
-    let physical_device = PhysicalDevice::enumerate(instance)
-        .find(|physical_device| physical_device.ty() == PhysicalDeviceType::DiscreteGpu)
-        .or_else(|| PhysicalDevice::enumerate(instance).next());
-    #[cfg(debug_assertions)]
-    {
-        match physical_device {
-            Some(physical_device) => println!(
-                "--- Using device: {} (type: {:?})",
-                physical_device.name(),
-                physical_device.ty()
-            ),
-            None => println!("--- Error: No device found")
-        }
-        println!("####################################### END PHYSICAL DEVICES #######################################");
+}
+
+mod fs {
+    vulkano_shaders::shader!{
+        ty: "fragment",
+        src: "
+            #version 450
+
+            layout(location = 0) out vec4 f_color;
+
+            void main() {
+                f_color = vec4(1.0, 0.0, 0.0, 1.0);
+            }"
     }
-    Some(physical_device?)
+}
+
+pub struct Vulkan {
+    instance: Arc<Instance>,
+    device: Arc<Device>,
+    queues: QueuesIter,
+}
+
+impl Vulkan {
+    fn init() -> Option<Vulkan> {
+        let instance = match Instance::new(None, &InstanceExtensions::none(), None) {
+            Ok(instance) => instance,
+            Err(_) => return None
+        };
+        let physical_device = get_physical_device(&instance)?;
+        let queue_family = physical_device.queue_families()
+            .find(|&q| q.supports_graphics())?;
+
+        let (device, queues) = {
+            match Device::new(physical_device, &Features::none(), &DeviceExtensions::none(),
+                        [(queue_family, 0.5)].iter().cloned()) {
+                Ok((device, queues)) => (device, queues),
+                Err(_) => return None
+            }
+        };
+
+        Some(Vulkan {
+            instance,
+            device,
+            queues
+        })
+    }
+
+    fn get_queue(&mut self) -> Option<Arc<Queue>> {
+        self.queues.next()
+    }
+
+    fn get_device(&self) -> Arc<Device> {
+        self.device.clone()
+    }
 }
 
 pub fn test() {
-    let instance = Instance::new(None, &InstanceExtensions::none(), None)
-                        .expect("Failed to create instance");
 
-    let physical = get_physical_device(&instance).unwrap();
+    let mut vulkan = Vulkan::init().unwrap();
 
-    let queue_family = physical.queue_families()
-                            .find(|&q| q.supports_graphics())
-                            .expect("couldn't find a graphical queue family");
+    let queue = vulkan.get_queue().unwrap();
+    let device = vulkan.get_device();
 
-    let (device, mut queues) = {
-        Device::new(physical, &Features::none(), &DeviceExtensions::none(),
-                    [(queue_family, 0.5)].iter().cloned()).expect("failed to create device")
+    let image = StorageImage::new(
+        device.clone(),
+        Dimensions::Dim2d {
+            width: 1024,
+            height: 1024,
+        },
+        Format::R8G8B8A8Unorm,
+        Some(queue.family()),
+    )
+    .unwrap();
+
+    let buf = CpuAccessibleBuffer::from_iter(
+        device.clone(),
+        BufferUsage::all(),
+        false,
+        (0..1024 * 1024 * 4).map(|_| 0u8),
+    )
+    .expect("failed to create buffer");
+
+    let vertex1 = Vertex {
+        position: [-0.5, -0.5],
+    };
+    let vertex2 = Vertex {
+        position: [0.0, 0.5],
+    };
+    let vertex3 = Vertex {
+        position: [0.5, -0.25],
+    };
+    let vertex_buffer = CpuAccessibleBuffer::from_iter(
+        device.clone(),
+        BufferUsage::all(),
+        false,
+        vec![vertex1, vertex2, vertex3].into_iter(),
+    )
+    .unwrap();
+
+    let render_pass = Arc::new(vulkano::single_pass_renderpass!(device.clone(),
+        attachments: {
+            color: {
+                load: Clear,
+                store: Store,
+                format: Format::R8G8B8A8Unorm,
+                samples: 1,
+            }
+        },
+        pass: {
+            color: [color],
+            depth_stencil: {}
+        }
+    ).unwrap());
+
+    let framebuffer = Arc::new(Framebuffer::start(render_pass.clone())
+        .add(image.clone()).unwrap()
+        .build().unwrap());
+
+    let vs = vs::Shader::load(device.clone()).expect("failed to create shader module");
+    let fs = fs::Shader::load(device.clone()).expect("failed to create shader module");
+
+    let pipeline = Arc::new(
+    GraphicsPipeline::start()
+        .vertex_input_single_buffer::<Vertex>()
+        .vertex_shader(vs.main_entry_point(), ())
+        .viewports_dynamic_scissors_irrelevant(1)
+        .fragment_shader(fs.main_entry_point(), ())
+        .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
+        .build(device.clone())
+        .unwrap(),
+    );
+
+    let dynamic_state = DynamicState {
+        viewports: Some(vec![Viewport {
+            origin: [0.0, 0.0],
+            dimensions: [1024.0, 1024.0],
+            depth_range: 0.0..1.0,
+        }]),
+        ..DynamicState::none()
     };
 
-    let queue = queues.next().unwrap();
+    let mut builder =
+        AutoCommandBufferBuilder::primary_one_time_submit(device.clone(), queue.family()).unwrap();
 
-
-    let image = StorageImage::new(device.clone(), Dimensions::Dim2d { width: 1024, height: 1024 },
-                                  Format::R8G8B8A8Unorm, Some(queue.family())).unwrap();
-
-    let buf = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(), false,
-                                             (0 .. 1024 * 1024 * 4).map(|_| 0u8))
-                                                        .expect("failed to create buffer");
-
-    let mut builder = AutoCommandBufferBuilder::new(device.clone(), queue.family()).unwrap();
     builder
-        .clear_color_image(image.clone(), ClearValue::Float([0.0, 0.0, 1.0, 1.0])).unwrap()
-        .copy_image_to_buffer(image.clone(), buf.clone()).unwrap();
+        .begin_render_pass(
+            framebuffer.clone(),
+            false,
+            vec![[0.0, 0.0, 1.0, 1.0].into()],
+        )
+        .unwrap()
+        .draw(
+            pipeline.clone(),
+            &dynamic_state,
+            vertex_buffer.clone(),
+            (),
+            (),
+        )
+        .unwrap()
+        .end_render_pass()
+        .unwrap()
+        .copy_image_to_buffer(image.clone(), buf.clone())
+        .unwrap();
+
     let command_buffer = builder.build().unwrap();
 
     let finished = command_buffer.execute(queue.clone()).unwrap();
-    finished.then_signal_fence_and_flush().unwrap()
-        .wait(None).unwrap();
+    finished
+        .then_signal_fence_and_flush()
+        .unwrap()
+        .wait(None)
+        .unwrap();
 
     let buffer_content = buf.read().unwrap();
     let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &buffer_content[..]).unwrap();
