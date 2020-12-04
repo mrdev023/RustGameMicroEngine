@@ -1,12 +1,9 @@
 [package]
-name = "tuto1"
-version = "0.1.0"
+name = "engine_math"
+version = "0.0.1"
 authors = ["Florian RICHER <florian.richer@unova.fr>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-engine_utils = { path = "engine_utils" }
-engine_math = { path = "engine_math" }
-engine_core = { path = "engine_core" }

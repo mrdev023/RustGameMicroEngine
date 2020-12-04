@@ -1,5 +1,5 @@
-use crate::math::Transform;
 use crate::entities::Entity;
+use engine_math::Transform;
 
 #[derive(Debug)]
 pub struct Player {
@@ -9,7 +9,7 @@ pub struct Player {
 impl Player {
     pub fn new() -> Player {
         Player {
-            transform: Transform::new()
+            transform: Transform::new(),
         }
     }
 }

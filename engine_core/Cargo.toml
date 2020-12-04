@@ -1,12 +1,16 @@
 [package]
-name = "tuto1"
-version = "0.1.0"
+name = "engine_core"
+version = "0.0.1"
 authors = ["Florian RICHER <florian.richer@unova.fr>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-engine_utils = { path = "engine_utils" }
-engine_math = { path = "engine_math" }
-engine_core = { path = "engine_core" }
+engine_utils = { path = "../engine_utils" }
+
+vulkano = "0.19"
+vulkano-shaders = "0.19"
+image = "0.23"
+vulkano-win = "0.19"
+winit = "0.23"

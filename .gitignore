@@ -1,3 +1,6 @@
-/target
+target
+engine_core/target
+engine_math/target
+engine_utils/target
 .idea
 *.png

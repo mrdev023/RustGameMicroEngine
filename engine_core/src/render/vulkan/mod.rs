@@ -1,8 +1,8 @@
-mod vertex;
 mod physical_device;
+mod vertex;
 
-pub use vertex::Vertex;
 use physical_device::get_physical_device;
+pub use vertex::Vertex;
 
 use image::ImageBuffer;
 use image::Rgba;
@@ -12,23 +12,22 @@ use vulkano::buffer::CpuAccessibleBuffer;
 use vulkano::command_buffer::AutoCommandBufferBuilder;
 use vulkano::command_buffer::CommandBuffer;
 use vulkano::command_buffer::DynamicState;
-use vulkano::device::{Device, QueuesIter, Queue};
 use vulkano::device::DeviceExtensions;
 use vulkano::device::Features;
+use vulkano::device::{Device, Queue, QueuesIter};
 use vulkano::format::Format;
 use vulkano::framebuffer::Framebuffer;
 use vulkano::framebuffer::Subpass;
 use vulkano::image::Dimensions;
 use vulkano::image::StorageImage;
-use vulkano::instance::{Instance, PhysicalDeviceType, QueueFamily};
 use vulkano::instance::InstanceExtensions;
-use vulkano::instance::PhysicalDevice;
+use vulkano::instance::{Instance, QueueFamily};
 use vulkano::pipeline::viewport::Viewport;
 use vulkano::pipeline::GraphicsPipeline;
 use vulkano::sync::GpuFuture;
 
 mod vs {
-    vulkano_shaders::shader!{
+    vulkano_shaders::shader! {
         ty: "vertex",
         src: "
             #version 450
@@ -42,7 +41,7 @@ mod vs {
 }
 
 mod fs {
-    vulkano_shaders::shader!{
+    vulkano_shaders::shader! {
         ty: "fragment",
         src: "
             #version 450
@@ -55,34 +54,37 @@ mod fs {
     }
 }
 
-pub struct Vulkan {
+pub struct VulkanInstance {
     instance: Arc<Instance>,
     device: Arc<Device>,
     queues: QueuesIter,
 }
 
-impl Vulkan {
-    fn init() -> Option<Vulkan> {
-        let instance = match Instance::new(None, &InstanceExtensions::none(), None) {
-            Ok(instance) => instance,
-            Err(_) => return None
-        };
-        let physical_device = get_physical_device(&instance)?;
-        let queue_family = physical_device.queue_families()
-            .find(|&q| q.supports_graphics())?;
+impl VulkanInstance {
+    fn init() -> Result<VulkanInstance, String> {
+        let instance = Instance::new(None, &InstanceExtensions::none(), None)
+            .map_err(|_| engine_utils::format_error!("Instance creation failed"))?;
 
-        let (device, queues) = {
-            match Device::new(physical_device, &Features::none(), &DeviceExtensions::none(),
-                        [(queue_family, 0.5)].iter().cloned()) {
-                Ok((device, queues)) => (device, queues),
-                Err(_) => return None
-            }
-        };
+        let physical_device = get_physical_device(&instance)
+            .ok_or(engine_utils::format_error!("No physical device found"))?;
 
-        Some(Vulkan {
+        let queue_family = physical_device
+            .queue_families()
+            .find(|&q| q.supports_graphics())
+            .ok_or(engine_utils::format_error!("No queue found"))?;
+
+        let (device, queues) = Device::new(
+            physical_device,
+            &Features::none(),
+            &DeviceExtensions::none(),
+            [(queue_family, 0.5)].iter().cloned(),
+        )
+        .map_err(|_| engine_utils::format_error!("Virtual device creation failed"))?;
+
+        Ok(VulkanInstance {
             instance,
             device,
-            queues
+            queues,
         })
     }
 
@@ -96,8 +98,7 @@ impl Vulkan {
 }
 
 pub fn test() {
-
-    let mut vulkan = Vulkan::init().unwrap();
+    let mut vulkan = VulkanInstance::init().unwrap();
 
     let queue = vulkan.get_queue().unwrap();
     let device = vulkan.get_device();
@@ -138,37 +139,44 @@ pub fn test() {
     )
     .unwrap();
 
-    let render_pass = Arc::new(vulkano::single_pass_renderpass!(device.clone(),
-        attachments: {
-            color: {
-                load: Clear,
-                store: Store,
-                format: Format::R8G8B8A8Unorm,
-                samples: 1,
+    let render_pass = Arc::new(
+        vulkano::single_pass_renderpass!(device.clone(),
+            attachments: {
+                color: {
+                    load: Clear,
+                    store: Store,
+                    format: Format::R8G8B8A8Unorm,
+                    samples: 1,
+                }
+            },
+            pass: {
+                color: [color],
+                depth_stencil: {}
             }
-        },
-        pass: {
-            color: [color],
-            depth_stencil: {}
-        }
-    ).unwrap());
+        )
+        .unwrap(),
+    );
 
-    let framebuffer = Arc::new(Framebuffer::start(render_pass.clone())
-        .add(image.clone()).unwrap()
-        .build().unwrap());
+    let framebuffer = Arc::new(
+        Framebuffer::start(render_pass.clone())
+            .add(image.clone())
+            .unwrap()
+            .build()
+            .unwrap(),
+    );
 
     let vs = vs::Shader::load(device.clone()).expect("failed to create shader module");
     let fs = fs::Shader::load(device.clone()).expect("failed to create shader module");
 
     let pipeline = Arc::new(
-    GraphicsPipeline::start()
-        .vertex_input_single_buffer::<Vertex>()
-        .vertex_shader(vs.main_entry_point(), ())
-        .viewports_dynamic_scissors_irrelevant(1)
-        .fragment_shader(fs.main_entry_point(), ())
-        .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
-        .build(device.clone())
-        .unwrap(),
+        GraphicsPipeline::start()
+            .vertex_input_single_buffer::<Vertex>()
+            .vertex_shader(vs.main_entry_point(), ())
+            .viewports_dynamic_scissors_irrelevant(1)
+            .fragment_shader(fs.main_entry_point(), ())
+            .render_pass(Subpass::from(render_pass.clone(), 0).unwrap())
+            .build(device.clone())
+            .unwrap(),
     );
 
     let dynamic_state = DynamicState {
