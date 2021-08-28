@@ -1,7 +1,4 @@
-mod entities;
-
-use engine_core::test;
-
 fn main() {
-    test();
+    let engine = engine_core::Engine::new("Test 123");
+    engine.run();
 }

@@ -3,14 +3,12 @@ name = "engine_core"
 version = "0.0.1"
 authors = ["Florian RICHER <florian.richer@unova.fr>"]
 edition = "2018"
+resolver = "2"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-engine_utils = { path = "../engine_utils" }
-
-vulkano = "0.19"
-vulkano-shaders = "0.19"
 image = "0.23"
-vulkano-win = "0.19"
-winit = "0.23"
+winit = "0.25"
+cgmath = "0.18"
+wgpu = "0.10.1"
