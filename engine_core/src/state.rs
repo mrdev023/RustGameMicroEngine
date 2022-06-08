@@ -78,6 +78,7 @@ impl State {
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
+        log::info!("{:#?}", event);
         false
     }
 

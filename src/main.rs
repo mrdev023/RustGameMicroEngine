@@ -1,7 +1,7 @@
 use simplelog::{TermLogger, LevelFilter, Config, TerminalMode, ColorChoice};
 
 fn main() {
-    if let Err(err) = TermLogger::init(LevelFilter::Warn, Config::default(), TerminalMode::Mixed, ColorChoice::Auto) {
+    if let Err(err) = TermLogger::init(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto) {
         println!("Failed to start logger : {}", err);
     }
 
