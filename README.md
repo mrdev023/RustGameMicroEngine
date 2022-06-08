@@ -10,3 +10,4 @@
 ## USEFULL LINK
 
 - https://arewegameyet.rs/
+- https://sotrh.github.io/learn-wgpu/beginner/tutorial2-surface/#render
