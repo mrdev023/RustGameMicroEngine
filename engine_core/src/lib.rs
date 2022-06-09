@@ -1,4 +1,5 @@
 mod state;
+pub(self) mod vertex;
 
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
