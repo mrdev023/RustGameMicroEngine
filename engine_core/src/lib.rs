@@ -1,5 +1,6 @@
 mod state;
 pub(self) mod vertex;
+pub(self) mod texture;
 
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
