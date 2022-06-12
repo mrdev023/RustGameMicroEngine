@@ -2,6 +2,7 @@ mod state;
 pub(self) mod vertex;
 pub(self) mod texture;
 pub(self) mod camera;
+pub(self) mod instance;
 
 use winit::{
     event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
