@@ -1,7 +1,7 @@
 use super::vertex::Vertex;
 use cgmath::prelude::*;
 use wgpu::util::DeviceExt;
-use winit::{event::WindowEvent, window::Window};
+use winit::{event::{WindowEvent, KeyboardInput, VirtualKeyCode, ElementState}, window::Window};
 
 const VERTICES: &[Vertex] = &[
     Vertex {
@@ -53,9 +53,13 @@ pub struct State {
     // num_vertices: u32,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
+    diffuse_bind_group_pikachu: wgpu::BindGroup,
+    #[allow(dead_code)]
+    diffuse_texture_pikachu: super::texture::Texture,
     diffuse_bind_group: wgpu::BindGroup,
     #[allow(dead_code)]
     diffuse_texture: super::texture::Texture,
+    toggle: bool
 }
 
 impl State {
@@ -150,6 +154,49 @@ impl State {
                 wgpu::BindGroupEntry {
                     binding: 1,
                     resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                },
+            ],
+            label: Some("diffuse_bind_group"),
+        });
+
+        let diffuse_bytes_pikachu = include_bytes!("pikachu.png");
+        let diffuse_texture_pikachu =
+            super::texture::Texture::from_bytes(&device, &queue, diffuse_bytes_pikachu, "pikachu.png")
+                .unwrap();
+
+        let texture_bind_group_layout_pikachu =
+            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                entries: &[
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Texture {
+                            multisampled: false,
+                            view_dimension: wgpu::TextureViewDimension::D2,
+                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        },
+                        count: None,
+                    },
+                    wgpu::BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: wgpu::ShaderStages::FRAGMENT,
+                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                        count: None,
+                    },
+                ],
+                label: Some("texture_bind_group_layout"),
+            });
+
+        let diffuse_bind_group_pikachu = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout_pikachu,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture_pikachu.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_texture_pikachu.sampler),
                 },
             ],
             label: Some("diffuse_bind_group"),
@@ -322,8 +369,11 @@ impl State {
             num_indices,
             diffuse_bind_group,
             diffuse_texture,
+            diffuse_bind_group_pikachu,
+            diffuse_texture_pikachu,
             instances,
             instance_buffer,
+            toggle: false
         }
     }
 
@@ -337,7 +387,27 @@ impl State {
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
-        self.camera_controller.process_events(event)
+        match event {
+            WindowEvent::KeyboardInput {
+                input:
+                    KeyboardInput {
+                        state,
+                        virtual_keycode: Some(keycode),
+                        ..
+                    },
+                ..
+            } => {
+                let is_pressed = *state == ElementState::Pressed;
+                match keycode {
+                    VirtualKeyCode::Space => {
+                        self.toggle = is_pressed;
+                        true
+                    }
+                    _ => self.camera_controller.process_events(event),
+                }
+            }
+            _ => self.camera_controller.process_events(event),
+        }
     }
 
     pub fn update(&mut self) {
@@ -385,7 +455,11 @@ impl State {
 
             render_pass.set_pipeline(&self.render_pipeline);
 
-            render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+            if self.toggle {
+                render_pass.set_bind_group(0, &self.diffuse_bind_group_pikachu, &[]);
+            } else {
+                render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
+            }
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
