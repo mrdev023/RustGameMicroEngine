@@ -1,7 +1,10 @@
 use super::vertex::Vertex;
 use cgmath::prelude::*;
 use wgpu::util::DeviceExt;
-use winit::{event::{WindowEvent, KeyboardInput, VirtualKeyCode, ElementState}, window::Window};
+use winit::{
+    event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent},
+    window::Window,
+};
 
 const VERTICES: &[Vertex] = &[
     Vertex {
@@ -63,7 +66,7 @@ pub struct State {
     #[allow(dead_code)]
     diffuse_texture: super::texture::Texture,
     depth_texture: super::texture::Texture,
-    toggle: bool
+    toggle: bool,
 }
 
 impl State {
@@ -120,11 +123,7 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        let diffuse_bytes = include_bytes!("happy-tree.png");
-        let diffuse_texture =
-            super::texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png")
-                .unwrap();
-
+        // Binding des textures
         let texture_bind_group_layout =
             device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
                 entries: &[
@@ -148,6 +147,11 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
+        let diffuse_bytes = include_bytes!("happy-tree.png");
+        let diffuse_texture =
+            super::texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png")
+                .unwrap();
+
         let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
             layout: &texture_bind_group_layout,
             entries: &[
@@ -164,35 +168,16 @@ impl State {
         });
 
         let diffuse_bytes_pikachu = include_bytes!("pikachu.png");
-        let diffuse_texture_pikachu =
-            super::texture::Texture::from_bytes(&device, &queue, diffuse_bytes_pikachu, "pikachu.png")
-                .unwrap();
-
-        let texture_bind_group_layout_pikachu =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("texture_bind_group_layout"),
-            });
+        let diffuse_texture_pikachu = super::texture::Texture::from_bytes(
+            &device,
+            &queue,
+            diffuse_bytes_pikachu,
+            "pikachu.png",
+        )
+        .unwrap();
 
         let diffuse_bind_group_pikachu = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout_pikachu,
+            layout: &texture_bind_group_layout,
             entries: &[
                 wgpu::BindGroupEntry {
                     binding: 0,
@@ -205,21 +190,7 @@ impl State {
             ],
             label: Some("diffuse_bind_group"),
         });
-
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        // let num_vertices = VERTICES.len() as u32;
-
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-        let num_indices = INDICES.len() as u32;
+        // FIN Binding des textures
 
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
@@ -275,13 +246,6 @@ impl State {
 
         let camera_controller = super::camera::CameraController::new(0.2);
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
-                push_constant_ranges: &[],
-            });
-
         let instances = (0..NUM_INSTANCES_PER_ROW)
             .flat_map(|z| {
                 (0..NUM_INSTANCES_PER_ROW).map(move |x| {
@@ -317,7 +281,15 @@ impl State {
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
 
-        let depth_texture = super::texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+        let depth_texture =
+            super::texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+
+        let render_pipeline_layout =
+            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("Render Pipeline Layout"),
+                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
+                push_constant_ranges: &[],
+            });
 
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
@@ -351,8 +323,8 @@ impl State {
             depth_stencil: Some(wgpu::DepthStencilState {
                 format: super::texture::Texture::DEPTH_FORMAT,
                 depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less, // 1.
-                stencil: wgpu::StencilState::default(), // 2.
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),
             multisample: wgpu::MultisampleState {
@@ -362,6 +334,21 @@ impl State {
             },
             multiview: None,
         });
+
+        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(VERTICES),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
+
+        // let num_vertices = VERTICES.len() as u32;
+
+        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(INDICES),
+            usage: wgpu::BufferUsages::INDEX,
+        });
+        let num_indices = INDICES.len() as u32;
 
         Self {
             surface,
@@ -397,7 +384,11 @@ impl State {
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
         }
-        self.depth_texture = super::texture::Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
+        self.depth_texture = super::texture::Texture::create_depth_texture(
+            &self.device,
+            &self.config,
+            "depth_texture",
+        );
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
@@ -487,7 +478,7 @@ impl State {
                         store: true,
                     }),
                     stencil_ops: None,
-                })
+                }),
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
