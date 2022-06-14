@@ -1,4 +1,6 @@
-use super::vertex::Vertex;
+use super::render::{
+    Vertex, Camera, CameraUniform, CameraController, Texture, Instance, InstanceRaw
+};
 use cgmath::prelude::*;
 use wgpu::util::DeviceExt;
 use winit::{
@@ -49,23 +51,23 @@ pub struct State {
     pub size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    camera: super::camera::Camera,
-    camera_uniform: super::camera::CameraUniform,
+    camera: Camera,
+    camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
-    camera_controller: super::camera::CameraController,
-    instances: Vec<super::instance::Instance>,
+    camera_controller: CameraController,
+    instances: Vec<Instance>,
     instance_buffer: wgpu::Buffer,
     // num_vertices: u32,
     index_buffer: wgpu::Buffer,
     num_indices: u32,
     diffuse_bind_group_pikachu: wgpu::BindGroup,
     #[allow(dead_code)]
-    diffuse_texture_pikachu: super::texture::Texture,
+    diffuse_texture_pikachu: Texture,
     diffuse_bind_group: wgpu::BindGroup,
     #[allow(dead_code)]
-    diffuse_texture: super::texture::Texture,
-    depth_texture: super::texture::Texture,
+    diffuse_texture: Texture,
+    depth_texture: Texture,
     toggle: bool,
 }
 
@@ -149,7 +151,7 @@ impl State {
 
         let diffuse_bytes = include_bytes!("happy-tree.png");
         let diffuse_texture =
-            super::texture::Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png")
+            Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png")
                 .unwrap();
 
         let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -168,7 +170,7 @@ impl State {
         });
 
         let diffuse_bytes_pikachu = include_bytes!("pikachu.png");
-        let diffuse_texture_pikachu = super::texture::Texture::from_bytes(
+        let diffuse_texture_pikachu = Texture::from_bytes(
             &device,
             &queue,
             diffuse_bytes_pikachu,
@@ -197,7 +199,7 @@ impl State {
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
-        let camera = super::camera::Camera {
+        let camera = Camera {
             // position the camera one unit up and 2 units back
             // +z is out of the screen
             eye: (0.0, 1.0, 2.0).into(),
@@ -211,7 +213,7 @@ impl State {
             zfar: 100.0,
         };
 
-        let mut camera_uniform = super::camera::CameraUniform::new();
+        let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera);
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -244,7 +246,7 @@ impl State {
             label: Some("camera_bind_group"),
         });
 
-        let camera_controller = super::camera::CameraController::new(0.2);
+        let camera_controller = CameraController::new(0.2);
 
         let instances = (0..NUM_INSTANCES_PER_ROW)
             .flat_map(|z| {
@@ -266,14 +268,14 @@ impl State {
                         cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
                     };
 
-                    super::instance::Instance { position, rotation }
+                    Instance { position, rotation }
                 })
             })
             .collect::<Vec<_>>();
 
         let instance_data = instances
             .iter()
-            .map(super::instance::Instance::to_raw)
+            .map(Instance::to_raw)
             .collect::<Vec<_>>();
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
@@ -282,7 +284,7 @@ impl State {
         });
 
         let depth_texture =
-            super::texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+            Texture::create_depth_texture(&device, &config, "depth_texture");
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -297,7 +299,7 @@ impl State {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex::desc(), super::instance::InstanceRaw::desc()],
+                buffers: &[Vertex::desc(), InstanceRaw::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -321,7 +323,7 @@ impl State {
                 conservative: false,
             },
             depth_stencil: Some(wgpu::DepthStencilState {
-                format: super::texture::Texture::DEPTH_FORMAT,
+                format: Texture::DEPTH_FORMAT,
                 depth_write_enabled: true,
                 depth_compare: wgpu::CompareFunction::Less,
                 stencil: wgpu::StencilState::default(),
@@ -384,7 +386,7 @@ impl State {
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
         }
-        self.depth_texture = super::texture::Texture::create_depth_texture(
+        self.depth_texture = Texture::create_depth_texture(
             &self.device,
             &self.config,
             "depth_texture",
@@ -432,7 +434,7 @@ impl State {
         let instance_data = self
             .instances
             .iter()
-            .map(super::instance::Instance::to_raw)
+            .map(Instance::to_raw)
             .collect::<Vec<_>>();
         self.queue.write_buffer(
             &self.instance_buffer,
