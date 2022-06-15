@@ -56,10 +56,10 @@ impl Renderable for Mesh {
 
     fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
         render_pass.set_bind_group(0, &self.texture_bind_group.as_ref().unwrap(), &[]);
-        render_pass.set_vertex_buffer(0, self.vertex_buffer.as_ref().unwrap().slice(..).clone());
+        render_pass.set_vertex_buffer(0, self.vertex_buffer.as_ref().unwrap().slice(..));
         render_pass.set_vertex_buffer(1, self.instance_buffer.as_ref().unwrap().slice(..));
         render_pass.set_index_buffer(self.index_buffer.as_ref().unwrap().slice(..), wgpu::IndexFormat::Uint16);
 
-        render_pass.draw_indexed(0..self.index_array.len() as _, 0, 0..self.num_indices);
+        render_pass.draw_indexed(0..self.num_indices as _, 0, 0..self.instance_array.len() as _);
     }
 }
