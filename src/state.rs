@@ -149,7 +149,7 @@ impl State {
                 label: Some("texture_bind_group_layout"),
             });
 
-        let diffuse_bytes = include_bytes!("happy-tree.png");
+        let diffuse_bytes = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/happy-tree.png"));
         let diffuse_texture =
             Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png")
                 .unwrap();
@@ -169,7 +169,7 @@ impl State {
             label: Some("diffuse_bind_group"),
         });
 
-        let diffuse_bytes_pikachu = include_bytes!("pikachu.png");
+        let diffuse_bytes_pikachu = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/pikachu.png"));
         let diffuse_texture_pikachu = Texture::from_bytes(
             &device,
             &queue,
@@ -196,7 +196,7 @@ impl State {
 
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
+            source: wgpu::ShaderSource::Wgsl(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/shaders/main.wgsl")).into()),
         });
 
         let camera = Camera {
