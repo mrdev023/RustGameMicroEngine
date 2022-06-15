@@ -13,3 +13,12 @@ mod instance;
 pub use instance::{
   Instance, InstanceRaw
 };
+use wgpu::{Device, Queue};
+
+mod mesh;
+
+pub trait Renderable {
+  fn prepare(&mut self, device: &Device);
+  fn update_instances(&mut self, device: &Queue);
+  fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>);
+}
