@@ -7,7 +7,7 @@ pub use camera::{
 };
 
 mod texture;
-pub use texture::Texture;
+pub use texture::{Texture, TextureManager};
 
 mod instance;
 pub use instance::{

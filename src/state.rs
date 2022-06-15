@@ -1,4 +1,4 @@
-use crate::{meshs::DefaultMesh, render::Renderable};
+use crate::{meshs::DefaultMesh, render::{Renderable, TextureManager}};
 
 use super::render::{
     Vertex, Camera, CameraUniform, CameraController, Texture, InstanceRaw
@@ -23,6 +23,8 @@ pub struct State {
     camera_controller: CameraController,
     depth_texture: Texture,
     mesh: DefaultMesh,
+    #[allow(dead_code)]
+    texture_manager: TextureManager,
 }
 
 impl State {
@@ -79,30 +81,7 @@ impl State {
         };
         surface.configure(&device, &config);
 
-        // Binding des textures
-        let texture_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("texture_bind_group_layout"),
-            });
-        // FIN Binding des textures
+        let texture_manager = TextureManager::new(&device);
 
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
@@ -164,7 +143,7 @@ impl State {
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout, &camera_bind_group_layout],
+                bind_group_layouts: &[&texture_manager.get_texture_bind_group_layout(), &camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -212,51 +191,19 @@ impl State {
             multiview: None,
         });
 
-        // Loading mesh
-
-        let diffuse_bytes = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/happy-tree.png"));
-        let diffuse_texture =
-            Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png")
-                .unwrap();
-
-        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
-
-        let diffuse_bytes_pikachu = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/pikachu.png"));
-        let diffuse_texture_pikachu = Texture::from_bytes(
+        let diffuse_bind_group = texture_manager.create_texture_from_bytes(
             &device,
             &queue,
-            diffuse_bytes_pikachu,
-            "pikachu.png",
-        )
-        .unwrap();
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/happy-tree.png")),
+            "happy-tree.png",
+        );
 
-        let diffuse_bind_group_pikachu = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture_pikachu.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture_pikachu.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
+        let diffuse_bind_group_pikachu = texture_manager.create_texture_from_bytes(
+            &device,
+            &queue,
+            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/pikachu.png")),
+            "pikachu.png",
+        );
 
         let mut mesh = DefaultMesh::new(diffuse_bind_group, diffuse_bind_group_pikachu);
         mesh.prepare(&device);
@@ -274,7 +221,8 @@ impl State {
             camera_bind_group,
             camera_controller,
             depth_texture,
-            mesh
+            mesh,
+            texture_manager
         }
     }
 
