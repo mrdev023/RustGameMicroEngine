@@ -5,6 +5,7 @@ mod state;
 pub use state::State;
 
 pub mod render;
+pub mod meshs;
 
 use simplelog::{TermLogger, LevelFilter, Config, TerminalMode, ColorChoice};
 

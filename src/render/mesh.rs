@@ -1,16 +1,18 @@
+use std::sync::Arc;
+
 use wgpu::{Device, util::DeviceExt, Queue};
 
 use super::{Vertex, Renderable, Instance};
 
 pub struct Mesh {
-    vertex_array: Vec<Vertex>,
-    index_array: Vec<u16>,
-    num_indices: u32,
-    instance_array: Vec<Instance>,
-    texture_bind_group: Option<wgpu::BindGroup>,
-    vertex_buffer: Option<wgpu::Buffer>,
-    index_buffer: Option<wgpu::Buffer>,
-    instance_buffer: Option<wgpu::Buffer>,
+    pub vertex_array: Vec<Vertex>,
+    pub index_array: Vec<u16>,
+    pub num_indices: u32,
+    pub instance_array: Vec<Instance>,
+    pub texture_bind_group: Option<Arc<wgpu::BindGroup>>,
+    pub vertex_buffer: Option<wgpu::Buffer>,
+    pub index_buffer: Option<wgpu::Buffer>,
+    pub instance_buffer: Option<wgpu::Buffer>,
 }
 
 impl Renderable for Mesh {

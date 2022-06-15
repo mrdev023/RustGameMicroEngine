@@ -16,6 +16,7 @@ pub use instance::{
 use wgpu::{Device, Queue};
 
 mod mesh;
+pub use mesh::Mesh;
 
 pub trait Renderable {
   fn prepare(&mut self, device: &Device);

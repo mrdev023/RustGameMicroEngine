@@ -1,47 +1,13 @@
+use crate::{meshs::DefaultMesh, render::Renderable};
+
 use super::render::{
-    Vertex, Camera, CameraUniform, CameraController, Texture, Instance, InstanceRaw
+    Vertex, Camera, CameraUniform, CameraController, Texture, InstanceRaw
 };
-use cgmath::prelude::*;
 use wgpu::util::DeviceExt;
 use winit::{
-    event::{ElementState, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event::{KeyboardInput, VirtualKeyCode, WindowEvent},
     window::Window,
 };
-
-const VERTICES: &[Vertex] = &[
-    Vertex {
-        position: [-0.0868241, 0.49240386, 0.0],
-        tex_coords: [0.4131759, 0.00759614],
-    }, // A
-    Vertex {
-        position: [-0.49513406, 0.06958647, 0.0],
-        tex_coords: [0.0048659444, 0.43041354],
-    }, // B
-    Vertex {
-        position: [-0.21918549, -0.44939706, 0.0],
-        tex_coords: [0.28081453, 0.949397],
-    }, // C
-    Vertex {
-        position: [0.35966998, -0.3473291, 0.0],
-        tex_coords: [0.85967, 0.84732914],
-    }, // D
-    Vertex {
-        position: [0.44147372, 0.2347359, 0.0],
-        tex_coords: [0.9414737, 0.2652641],
-    }, // E
-];
-
-const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
-
-const NUM_INSTANCES_PER_ROW: u32 = 10;
-const INSTANCE_DISPLACEMENT: cgmath::Vector3<f32> = cgmath::Vector3::new(
-    NUM_INSTANCES_PER_ROW as f32 * 0.5,
-    0.0,
-    NUM_INSTANCES_PER_ROW as f32 * 0.5,
-);
-
-const FRAME_TIME: f32 = 1.0 / 60.0;
-const ROTATION_SPEED: f32 = std::f32::consts::PI * FRAME_TIME * 0.5;
 
 pub struct State {
     pub surface: wgpu::Surface,
@@ -50,25 +16,13 @@ pub struct State {
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     render_pipeline: wgpu::RenderPipeline,
-    vertex_buffer: wgpu::Buffer,
     camera: Camera,
     camera_uniform: CameraUniform,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     camera_controller: CameraController,
-    instances: Vec<Instance>,
-    instance_buffer: wgpu::Buffer,
-    // num_vertices: u32,
-    index_buffer: wgpu::Buffer,
-    num_indices: u32,
-    diffuse_bind_group_pikachu: wgpu::BindGroup,
-    #[allow(dead_code)]
-    diffuse_texture_pikachu: Texture,
-    diffuse_bind_group: wgpu::BindGroup,
-    #[allow(dead_code)]
-    diffuse_texture: Texture,
     depth_texture: Texture,
-    toggle: bool,
+    mesh: DefaultMesh,
 }
 
 impl State {
@@ -148,50 +102,6 @@ impl State {
                 ],
                 label: Some("texture_bind_group_layout"),
             });
-
-        let diffuse_bytes = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/happy-tree.png"));
-        let diffuse_texture =
-            Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png")
-                .unwrap();
-
-        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
-
-        let diffuse_bytes_pikachu = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/pikachu.png"));
-        let diffuse_texture_pikachu = Texture::from_bytes(
-            &device,
-            &queue,
-            diffuse_bytes_pikachu,
-            "pikachu.png",
-        )
-        .unwrap();
-
-        let diffuse_bind_group_pikachu = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &texture_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&diffuse_texture_pikachu.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&diffuse_texture_pikachu.sampler),
-                },
-            ],
-            label: Some("diffuse_bind_group"),
-        });
         // FIN Binding des textures
 
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
@@ -248,41 +158,6 @@ impl State {
 
         let camera_controller = CameraController::new(0.2);
 
-        let instances = (0..NUM_INSTANCES_PER_ROW)
-            .flat_map(|z| {
-                (0..NUM_INSTANCES_PER_ROW).map(move |x| {
-                    let position = cgmath::Vector3 {
-                        x: x as f32,
-                        y: 0.0,
-                        z: z as f32,
-                    } - INSTANCE_DISPLACEMENT;
-
-                    let rotation = if position.is_zero() {
-                        // this is needed so an object at (0, 0, 0) won't get scaled to zero
-                        // as Quaternions can effect scale if they're not created correctly
-                        cgmath::Quaternion::from_axis_angle(
-                            cgmath::Vector3::unit_z(),
-                            cgmath::Deg(0.0),
-                        )
-                    } else {
-                        cgmath::Quaternion::from_axis_angle(position.normalize(), cgmath::Deg(45.0))
-                    };
-
-                    Instance { position, rotation }
-                })
-            })
-            .collect::<Vec<_>>();
-
-        let instance_data = instances
-            .iter()
-            .map(Instance::to_raw)
-            .collect::<Vec<_>>();
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Instance Buffer"),
-            contents: bytemuck::cast_slice(&instance_data),
-            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
-        });
-
         let depth_texture =
             Texture::create_depth_texture(&device, &config, "depth_texture");
 
@@ -337,20 +212,54 @@ impl State {
             multiview: None,
         });
 
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
+        // Loading mesh
+
+        let diffuse_bytes = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/happy-tree.png"));
+        let diffuse_texture =
+            Texture::from_bytes(&device, &queue, diffuse_bytes, "happy-tree.png")
+                .unwrap();
+
+        let diffuse_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_texture.sampler),
+                },
+            ],
+            label: Some("diffuse_bind_group"),
         });
 
-        // let num_vertices = VERTICES.len() as u32;
+        let diffuse_bytes_pikachu = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/pikachu.png"));
+        let diffuse_texture_pikachu = Texture::from_bytes(
+            &device,
+            &queue,
+            diffuse_bytes_pikachu,
+            "pikachu.png",
+        )
+        .unwrap();
 
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
-            usage: wgpu::BufferUsages::INDEX,
+        let diffuse_bind_group_pikachu = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &texture_bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(&diffuse_texture_pikachu.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&diffuse_texture_pikachu.sampler),
+                },
+            ],
+            label: Some("diffuse_bind_group"),
         });
-        let num_indices = INDICES.len() as u32;
+
+        let mut mesh = DefaultMesh::new(diffuse_bind_group, diffuse_bind_group_pikachu);
+        mesh.prepare(&device);
 
         Self {
             surface,
@@ -359,23 +268,13 @@ impl State {
             config,
             size,
             render_pipeline,
-            vertex_buffer,
             camera,
             camera_uniform,
             camera_buffer,
             camera_bind_group,
             camera_controller,
-            // num_vertices,
-            index_buffer,
-            num_indices,
-            diffuse_bind_group,
-            diffuse_texture,
-            diffuse_bind_group_pikachu,
-            diffuse_texture_pikachu,
-            instances,
-            instance_buffer,
-            toggle: false,
             depth_texture,
+            mesh
         }
     }
 
@@ -398,16 +297,14 @@ impl State {
             WindowEvent::KeyboardInput {
                 input:
                     KeyboardInput {
-                        state,
                         virtual_keycode: Some(keycode),
                         ..
                     },
                 ..
             } => {
-                let is_pressed = *state == ElementState::Pressed;
                 match keycode {
                     VirtualKeyCode::Space => {
-                        self.toggle = is_pressed;
+                        self.mesh.toggle();
                         true
                     }
                     _ => self.camera_controller.process_events(event),
@@ -426,21 +323,7 @@ impl State {
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
 
-        for instance in &mut self.instances {
-            let amount = cgmath::Quaternion::from_angle_y(cgmath::Rad(ROTATION_SPEED));
-            let current = instance.rotation;
-            instance.rotation = amount * current;
-        }
-        let instance_data = self
-            .instances
-            .iter()
-            .map(Instance::to_raw)
-            .collect::<Vec<_>>();
-        self.queue.write_buffer(
-            &self.instance_buffer,
-            0,
-            bytemuck::cast_slice(&instance_data),
-        );
+        self.mesh.update_instances(&self.queue);
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -485,17 +368,9 @@ impl State {
 
             render_pass.set_pipeline(&self.render_pipeline);
 
-            if self.toggle {
-                render_pass.set_bind_group(0, &self.diffuse_bind_group_pikachu, &[]);
-            } else {
-                render_pass.set_bind_group(0, &self.diffuse_bind_group, &[]);
-            }
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            // render_pass.draw(0..self.num_vertices, 0..1);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..self.instances.len() as _);
+            
+            self.mesh.render(&mut render_pass);
         }
 
         // submit will accept anything that implements IntoIter
