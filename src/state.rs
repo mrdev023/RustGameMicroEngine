@@ -5,7 +5,7 @@ use super::render::{
 };
 use wgpu::util::DeviceExt;
 use winit::{
-    event::{KeyboardInput, VirtualKeyCode, WindowEvent},
+    event::{KeyboardInput, VirtualKeyCode, WindowEvent, ElementState},
     window::Window,
 };
 
@@ -297,14 +297,16 @@ impl State {
             WindowEvent::KeyboardInput {
                 input:
                     KeyboardInput {
+                        state,
                         virtual_keycode: Some(keycode),
                         ..
                     },
                 ..
             } => {
+                let is_pressed = *state == ElementState::Pressed;
                 match keycode {
                     VirtualKeyCode::Space => {
-                        self.mesh.toggle();
+                        self.mesh.toggle(is_pressed);
                         true
                     }
                     _ => self.camera_controller.process_events(event),

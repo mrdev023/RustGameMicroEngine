@@ -94,9 +94,9 @@ impl DefaultMesh {
     }
   }
 
-  pub fn toggle(&mut self) {
-    self.toggle = !self.toggle;
-    if self.toggle {
+  pub fn toggle(&mut self, toggle: bool) {
+    self.toggle = toggle;
+    if !self.toggle {
       self.mesh.texture_bind_group = Some(self.texture1_bind_group.clone());
     } else {
       self.mesh.texture_bind_group = Some(self.texture2_bind_group.clone());
