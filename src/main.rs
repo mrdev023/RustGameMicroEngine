@@ -6,6 +6,7 @@ pub use state::State;
 
 pub mod render;
 pub mod meshs;
+pub mod input;
 
 use simplelog::{TermLogger, LevelFilter, Config, TerminalMode, ColorChoice};
 

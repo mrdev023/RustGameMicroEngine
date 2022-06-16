@@ -2,9 +2,7 @@ mod vertex;
 pub use vertex::Vertex;
 
 mod camera;
-pub use camera::{
-  Camera, CameraUniform, CameraController
-};
+pub use camera::Camera;
 
 mod texture;
 pub use texture::{Texture, TextureManager};
@@ -20,6 +18,6 @@ pub use mesh::Mesh;
 
 pub trait Renderable {
   fn prepare(&mut self, device: &Device);
-  fn update_instances(&mut self, device: &Queue);
+  fn update_instances(&mut self, queue: &Queue);
   fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>);
 }
