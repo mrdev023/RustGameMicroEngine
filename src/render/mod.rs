@@ -16,6 +16,9 @@ use wgpu::{Device, Queue};
 mod mesh;
 pub use mesh::Mesh;
 
+mod window;
+pub use window::Window;
+
 pub trait Renderable {
   fn initialize(&mut self, device: &Device);
   fn update_instances(&mut self, queue: &Queue);

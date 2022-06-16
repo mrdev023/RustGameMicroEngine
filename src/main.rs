@@ -1,6 +1,3 @@
-mod engine;
-pub use engine::Engine;
-
 mod state;
 pub use state::State;
 
@@ -15,6 +12,6 @@ fn main() {
         println!("Failed to start logger : {}", err);
     }
 
-    let engine = Engine::new("Test 123");
+    let engine = render::Window::new("Test 123");
     pollster::block_on(engine.run());
 }
