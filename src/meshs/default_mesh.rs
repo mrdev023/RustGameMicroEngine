@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use cgmath::prelude::*;
+use winit::event::{WindowEvent, KeyboardInput, VirtualKeyCode, ElementState};
 
-use crate::render::{Mesh, Renderable, Vertex, Instance};
+use crate::{render::{Mesh, Renderable, Vertex, Instance}, input::Controllable};
 
 const VERTICES: &[Vertex] = &[
     Vertex {
@@ -121,4 +122,30 @@ impl Renderable for DefaultMesh {
   fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
     self.mesh.render(render_pass);
   }
+}
+
+impl Controllable for DefaultMesh {
+    fn process_events(&mut self, event: &winit::event::WindowEvent) -> bool {
+      match event {
+        WindowEvent::KeyboardInput {
+            input:
+                KeyboardInput {
+                    state,
+                    virtual_keycode: Some(keycode),
+                    ..
+                },
+            ..
+        } => {
+            let is_pressed = *state == ElementState::Pressed;
+            match keycode {
+                VirtualKeyCode::Space => {
+                    self.toggle(is_pressed);
+                    true
+                }
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+    }
 }

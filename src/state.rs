@@ -4,7 +4,7 @@ use super::render::{
     Vertex, Camera, Texture, InstanceRaw
 };
 use winit::{
-    event::{KeyboardInput, VirtualKeyCode, WindowEvent, ElementState},
+    event::WindowEvent,
     window::Window,
 };
 
@@ -186,27 +186,7 @@ impl State {
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
-        match event {
-            WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        state,
-                        virtual_keycode: Some(keycode),
-                        ..
-                    },
-                ..
-            } => {
-                let is_pressed = *state == ElementState::Pressed;
-                match keycode {
-                    VirtualKeyCode::Space => {
-                        self.mesh.toggle(is_pressed);
-                        true
-                    }
-                    _ => self.camera.process_events(event),
-                }
-            }
-            _ => self.camera.process_events(event),
-        }
+        self.mesh.process_events(&event) || self.camera.process_events(&event)
     }
 
     pub fn update(&mut self) {
