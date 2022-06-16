@@ -84,7 +84,7 @@ impl State {
         });
 
         let mut camera = Camera::new(config.width as f32, config.height as f32, 0.2);
-        camera.prepare(&device);
+        camera.initialize(&device);
 
         let depth_texture =
             Texture::create_depth_texture(&device, &config, "depth_texture");
@@ -155,7 +155,7 @@ impl State {
         );
 
         let mut mesh = DefaultMesh::new(diffuse_bind_group, diffuse_bind_group_pikachu);
-        mesh.prepare(&device);
+        mesh.initialize(&device);
 
         Self {
             surface,
@@ -235,8 +235,10 @@ impl State {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
-            self.camera.render(&mut render_pass);
-            self.mesh.render(&mut render_pass);
+            self.camera.prepare(&mut render_pass);
+            self.mesh.prepare(&mut render_pass);
+            self.camera.draw(&mut render_pass);
+            self.mesh.draw(&mut render_pass);
         }
 
         // submit will accept anything that implements IntoIter

@@ -106,8 +106,8 @@ impl DefaultMesh {
 }
 
 impl Renderable for DefaultMesh {
-  fn prepare(&mut self, device: &wgpu::Device) {
-    self.mesh.prepare(device);
+  fn initialize(&mut self, device: &wgpu::Device) {
+    self.mesh.initialize(device);
   }
 
   fn update_instances(&mut self, device: &wgpu::Queue) {
@@ -119,8 +119,12 @@ impl Renderable for DefaultMesh {
     self.mesh.update_instances(device);
   }
 
-  fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
-    self.mesh.render(render_pass);
+  fn prepare<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+    self.mesh.prepare(render_pass);
+  }
+
+  fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+    self.mesh.draw(render_pass);
   }
 }
 

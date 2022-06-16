@@ -17,7 +17,8 @@ mod mesh;
 pub use mesh::Mesh;
 
 pub trait Renderable {
-  fn prepare(&mut self, device: &Device);
+  fn initialize(&mut self, device: &Device);
   fn update_instances(&mut self, queue: &Queue);
-  fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>);
+  fn prepare<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>);
+  fn draw<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>);
 }

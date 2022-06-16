@@ -95,7 +95,7 @@ impl Camera {
 }
 
 impl Renderable for Camera {
-    fn prepare(&mut self, device: &wgpu::Device) {
+    fn initialize(&mut self, device: &wgpu::Device) {
         self.update_uniform();
 
         self.buffer = Some(
@@ -142,9 +142,11 @@ impl Renderable for Camera {
         );
     }
 
-    fn render<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
+    fn prepare<'a>(&'a self, render_pass: &mut wgpu::RenderPass<'a>) {
         render_pass.set_bind_group(1, &self.bind_group.as_ref().unwrap(), &[]);
     }
+
+    fn draw<'a>(&'a self, _render_pass: &mut wgpu::RenderPass<'a>) { }
 }
 
 impl Controllable for Camera {
