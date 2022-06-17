@@ -1,12 +1,11 @@
-use crate::{meshs::DefaultMesh, render::{Renderable, TextureManager}, input::Controllable};
+use crate::{
+    input::Controllable,
+    meshs::DefaultMesh,
+    render::{Renderable, TextureManager},
+};
 
-use super::render::{
-    Vertex, Camera, Texture, InstanceRaw
-};
-use winit::{
-    event::WindowEvent,
-    window::Window,
-};
+use super::render::{Camera, InstanceRaw, Texture, Vertex};
+use winit::{event::WindowEvent, window::Window};
 
 pub struct State {
     pub surface: wgpu::Surface,
@@ -80,19 +79,27 @@ impl State {
 
         let shader = device.create_shader_module(&wgpu::ShaderModuleDescriptor {
             label: Some("Shader"),
-            source: wgpu::ShaderSource::Wgsl(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/shaders/main.wgsl")).into()),
+            source: wgpu::ShaderSource::Wgsl(
+                include_str!(concat!(
+                    env!("CARGO_MANIFEST_DIR"),
+                    "/res/shaders/main.wgsl"
+                ))
+                .into(),
+            ),
         });
 
         let mut camera = Camera::new(config.width as f32, config.height as f32, 0.2);
         camera.initialize(&device);
 
-        let depth_texture =
-            Texture::create_depth_texture(&device, &config, "depth_texture");
+        let depth_texture = Texture::create_depth_texture(&device, &config, "depth_texture");
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&texture_manager.get_texture_bind_group_layout(), camera.get_bind_group_layout()],
+                bind_group_layouts: &[
+                    &texture_manager.get_texture_bind_group_layout(),
+                    camera.get_bind_group_layout(),
+                ],
                 push_constant_ranges: &[],
             });
 
@@ -143,14 +150,20 @@ impl State {
         let diffuse_bind_group = texture_manager.create_texture_from_bytes(
             &device,
             &queue,
-            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/happy-tree.png")),
+            include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/res/images/happy-tree.png"
+            )),
             "happy-tree.png",
         );
 
         let diffuse_bind_group_pikachu = texture_manager.create_texture_from_bytes(
             &device,
             &queue,
-            include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/res/images/pikachu.png")),
+            include_bytes!(concat!(
+                env!("CARGO_MANIFEST_DIR"),
+                "/res/images/pikachu.png"
+            )),
             "pikachu.png",
         );
 
@@ -167,7 +180,7 @@ impl State {
             camera,
             depth_texture,
             mesh,
-            texture_manager
+            texture_manager,
         }
     }
 
@@ -178,11 +191,8 @@ impl State {
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
         }
-        self.depth_texture = Texture::create_depth_texture(
-            &self.device,
-            &self.config,
-            "depth_texture",
-        );
+        self.depth_texture =
+            Texture::create_depth_texture(&self.device, &self.config, "depth_texture");
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {

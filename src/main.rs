@@ -1,14 +1,19 @@
 mod state;
 pub use state::State;
 
-pub mod render;
-pub mod meshs;
 pub mod input;
+pub mod meshs;
+pub mod render;
 
-use simplelog::{TermLogger, LevelFilter, Config, TerminalMode, ColorChoice};
+use simplelog::{ColorChoice, Config, LevelFilter, TermLogger, TerminalMode};
 
 fn main() {
-    if let Err(err) = TermLogger::init(LevelFilter::Info, Config::default(), TerminalMode::Mixed, ColorChoice::Auto) {
+    if let Err(err) = TermLogger::init(
+        LevelFilter::Info,
+        Config::default(),
+        TerminalMode::Mixed,
+        ColorChoice::Auto,
+    ) {
         println!("Failed to start logger : {}", err);
     }
 
