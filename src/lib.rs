@@ -202,45 +202,7 @@ impl State {
 
         surface.configure(&device, &config);
 
-        let texture_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                    // normal map
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 2,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                            view_dimension: wgpu::TextureViewDimension::D2,
-                        },
-                        count: None,
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 3,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("texture_bind_group_layout"),
-            });
+        let global_bind_layout = render::GlobalBindLayout::new(&device);
 
         // UPDATED!
         let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
@@ -300,23 +262,8 @@ impl State {
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let camera_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("camera_bind_group_layout"),
-            });
-
         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
+            layout: global_bind_layout.get_camera_bind_layout(),
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: camera_buffer.as_entire_binding(),
@@ -325,7 +272,7 @@ impl State {
         });
 
         let obj_model =
-            resources::load_model("cube.obj", &device, &queue, &texture_bind_group_layout)
+            resources::load_model("cube.obj", &device, &queue, global_bind_layout.get_texture_bind_layout())
                 .await
                 .unwrap();
 
@@ -342,23 +289,8 @@ impl State {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let light_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX | wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: None,
-            });
-
         let light_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &light_bind_group_layout,
+            layout: global_bind_layout.get_light_bind_layout(),
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
                 resource: light_buffer.as_entire_binding(),
@@ -373,9 +305,9 @@ impl State {
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
-                    &texture_bind_group_layout,
-                    &camera_bind_group_layout,
-                    &light_bind_group_layout,
+                    global_bind_layout.get_texture_bind_layout(),
+                    global_bind_layout.get_camera_bind_layout(),
+                    global_bind_layout.get_light_bind_layout(),
                 ],
                 push_constant_ranges: &[],
             });
@@ -398,7 +330,7 @@ impl State {
         let light_render_pipeline = {
             let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Light Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
+                bind_group_layouts: &[global_bind_layout.get_camera_bind_layout(), global_bind_layout.get_light_bind_layout()],
                 push_constant_ranges: &[],
             });
             let shader = wgpu::ShaderModuleDescriptor {
@@ -441,7 +373,7 @@ impl State {
                 "alt-material",
                 diffuse_texture,
                 normal_texture,
-                &texture_bind_group_layout,
+                global_bind_layout.get_texture_bind_layout(),
             )
         };
 
