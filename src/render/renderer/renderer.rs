@@ -5,11 +5,11 @@ use winit::{event::WindowEvent, window::Window};
 use super::State;
 
 pub struct Renderer {
-    surface: wgpu::Surface,
-    device: wgpu::Device,
-    queue: wgpu::Queue,
-    size: winit::dpi::PhysicalSize<u32>,
-    config: wgpu::SurfaceConfiguration,
+    pub surface: wgpu::Surface,
+    pub device: wgpu::Device,
+    pub queue: wgpu::Queue,
+    pub size: winit::dpi::PhysicalSize<u32>,
+    pub config: wgpu::SurfaceConfiguration,
     state: Option<Box<dyn State>>
 }
 
