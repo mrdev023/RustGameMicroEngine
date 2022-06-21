@@ -170,21 +170,16 @@ pub async fn run() {
     let default_state = Box::from(DefaultState::new(renderer.deref()));
     Arc::get_mut(&mut renderer).unwrap().set_state(Some(default_state));
     let mut last_render_time = instant::Instant::now();
-    event_loop.run(move |event, _, control_flow| {
+    event_loop.run(move |base_event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         let renderer = Arc::get_mut(&mut renderer).unwrap();
-        match event {
+
+        match base_event {
             Event::MainEventsCleared => window.request_redraw(),
-            // Event::DeviceEvent {
-            //     event: DeviceEvent::MouseMotion{ delta, },
-            //     .. // We're not using device_id currently
-            // } => if state.mouse_pressed {
-            //     state.camera_controller.process_mouse(delta.0, delta.1)
-            // }
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == window.id() && !renderer.input(event) => {
+            } if window_id == window.id() && !renderer.input(&base_event) => {
                 match event {
                     #[cfg(not(target_arch="wasm32"))]
                     WindowEvent::CloseRequested
@@ -203,7 +198,7 @@ pub async fn run() {
                     WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
                         renderer.resize(**new_inner_size);
                     }
-                    _ => {}
+                    _ => { renderer.input(&base_event); }
                 }
             }
             Event::RedrawRequested(window_id) if window_id == window.id() => {
@@ -221,7 +216,7 @@ pub async fn run() {
                     Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
                 }
             }
-            _ => {}
+            _ => { renderer.input(&base_event); }
         }
     });
 }

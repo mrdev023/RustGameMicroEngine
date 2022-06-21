@@ -1,7 +1,7 @@
 use cgmath::prelude::*;
 use rayon::prelude::*;
-use wgpu::util::DeviceExt;
-use winit::event::{ElementState, KeyboardInput, MouseButton, WindowEvent};
+use wgpu::{util::DeviceExt, Queue};
+use winit::event::{DeviceEvent, ElementState, Event, KeyboardInput, MouseButton, WindowEvent};
 
 use crate::{
     camera,
@@ -208,47 +208,64 @@ impl super::State for DefaultState {
         }
     }
 
-    fn resize(&mut self, renderer: &Renderer, new_size: winit::dpi::PhysicalSize<u32>) {
+    fn resize(
+        &mut self,
+        device: &wgpu::Device,
+        config: &wgpu::SurfaceConfiguration,
+        new_size: winit::dpi::PhysicalSize<u32>,
+    ) {
         self.projection.resize(new_size.width, new_size.height);
-        self.depth_texture = texture::Texture::create_depth_texture(
-            &renderer.device,
-            &renderer.config,
-            "depth_texture",
-        );
+        self.depth_texture =
+            texture::Texture::create_depth_texture(&device, &config, "depth_texture");
     }
 
-    fn input(&mut self, renderer: &Renderer, event: &winit::event::WindowEvent) -> bool {
+    fn input(&mut self, event: &Event<()>) -> bool {
         match event {
-            WindowEvent::KeyboardInput {
-                input:
-                    KeyboardInput {
-                        virtual_keycode: Some(key),
-                        state,
-                        ..
-                    },
-                ..
-            } => self.camera_controller.process_keyboard(*key, *state),
-            WindowEvent::MouseWheel { delta, .. } => {
-                self.camera_controller.process_scroll(delta);
-                true
-            }
-            WindowEvent::MouseInput {
-                button: MouseButton::Left,
-                state,
+            Event::DeviceEvent {
+                event: DeviceEvent::MouseMotion{ delta, },
                 ..
             } => {
-                self.mouse_pressed = *state == ElementState::Pressed;
+                if self.mouse_pressed {
+                    self.camera_controller.process_mouse(delta.0, delta.1);
+                }
                 true
-            }
+            },
+            Event::WindowEvent {
+                ref event,
+                ..
+            } => match event {
+                WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            virtual_keycode: Some(key),
+                            state,
+                            ..
+                        },
+                    ..
+                } => self.camera_controller.process_keyboard(*key, *state),
+                WindowEvent::MouseWheel { delta, .. } => {
+                    self.camera_controller.process_scroll(delta);
+                    true
+                }
+                WindowEvent::MouseInput {
+                    button: MouseButton::Left,
+                    state,
+                    ..
+                } => {
+                    self.mouse_pressed = *state == ElementState::Pressed;
+                    true
+                }
+                _ => false,
+            },
             _ => false,
         }
     }
 
-    fn update(&mut self, renderer: &Renderer, dt: instant::Duration) {
+    fn update(&mut self, queue: &Queue, dt: instant::Duration) {
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.camera_uniform
             .update_view_proj(&self.camera, &self.projection);
-        renderer.queue.write_buffer(
+        queue.write_buffer(
             &self.camera_buffer,
             0,
             bytemuck::cast_slice(&[self.camera_uniform]),
@@ -260,7 +277,7 @@ impl super::State for DefaultState {
             (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
                 * old_position)
                 .into();
-        renderer.queue.write_buffer(
+        queue.write_buffer(
             &self.light_buffer,
             0,
             bytemuck::cast_slice(&[self.light_uniform]),
@@ -269,7 +286,6 @@ impl super::State for DefaultState {
 
     fn render(
         &mut self,
-        renderer: &Renderer,
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
     ) -> Result<(), wgpu::SurfaceError> {

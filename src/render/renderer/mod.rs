@@ -5,13 +5,13 @@ pub use renderer::Renderer;
 mod default_state;
 pub use default_state::DefaultState;
 
-use wgpu::{TextureView, CommandEncoder};
-use winit::event::WindowEvent;
+use wgpu::{TextureView, CommandEncoder, Queue};
+use winit::event::Event;
 
 pub trait State {
   fn new(renderer: &Renderer) -> Self where Self: Sized;
-  fn resize(&mut self, renderer: &Renderer, new_size: winit::dpi::PhysicalSize<u32>);
-  fn input(&mut self, renderer: &Renderer, event: &WindowEvent) -> bool;
-  fn update(&mut self, renderer: &Renderer, dt: instant::Duration);
-  fn render(&mut self, renderer: &Renderer, view: &TextureView, encoder: &mut CommandEncoder) -> Result<(), wgpu::SurfaceError>;
+  fn resize(&mut self, device: &wgpu::Device, config: &wgpu::SurfaceConfiguration, new_size: winit::dpi::PhysicalSize<u32>);
+  fn input(&mut self, event: &Event<()>) -> bool;
+  fn update(&mut self, queue: &Queue, dt: instant::Duration);
+  fn render(&mut self, view: &TextureView, encoder: &mut CommandEncoder) -> Result<(), wgpu::SurfaceError>;
 }
