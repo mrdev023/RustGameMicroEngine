@@ -1,4 +1,9 @@
+mod light;
+mod model;
 pub mod utils;
+
+pub use light::LightPipeline;
+pub use model::ModelPipeline;
 
 pub struct GlobalBindLayout {
     texture: wgpu::BindGroupLayout,
@@ -77,7 +82,6 @@ impl GlobalBindLayout {
                 label: None,
             });
 
-
         Self {
             texture: texture_bind_group_layout,
             light: light_bind_group_layout,
@@ -95,5 +99,31 @@ impl GlobalBindLayout {
 
     pub fn get_camera_bind_layout(&self) -> &wgpu::BindGroupLayout {
         &self.camera
+    }
+}
+
+pub struct Pipelines {
+    render: model::ModelPipeline,
+    light: light::LightPipeline,
+}
+
+impl Pipelines {
+    pub fn new(
+        global_bind_layout: &GlobalBindLayout,
+        device: &wgpu::Device,
+        config: &wgpu::SurfaceConfiguration,
+    ) -> Self {
+        Self {
+            render: model::ModelPipeline::new(global_bind_layout, device, config),
+            light: light::LightPipeline::new(global_bind_layout, device, config),
+        }
+    }
+
+    pub fn get_render_pipeline(&self) -> &wgpu::RenderPipeline {
+        self.render.get_pipeline()
+    }
+
+    pub fn get_light_pipeline(&self) -> &wgpu::RenderPipeline {
+        self.light.get_pipeline()
     }
 }

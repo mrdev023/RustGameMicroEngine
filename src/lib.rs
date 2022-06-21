@@ -18,7 +18,7 @@ mod texture;
 
 mod render;
 
-use model::{DrawLight, DrawModel, Vertex};
+use model::{DrawLight, DrawModel};
 
 const NUM_INSTANCES_PER_ROW: u32 = 10;
 
@@ -136,7 +136,6 @@ struct State {
     device: wgpu::Device,
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
-    render_pipeline: wgpu::RenderPipeline,
     obj_model: model::Model,
     camera: camera::Camera,
     projection: camera::Projection,
@@ -152,10 +151,10 @@ struct State {
     light_uniform: LightUniform,
     light_buffer: wgpu::Buffer,
     light_bind_group: wgpu::BindGroup,
-    light_render_pipeline: wgpu::RenderPipeline,
     #[allow(dead_code)]
     debug_material: model::Material,
     mouse_pressed: bool,
+    pipelines: render::Pipelines
 }
 
 impl State {
@@ -203,6 +202,7 @@ impl State {
         surface.configure(&device, &config);
 
         let global_bind_layout = render::GlobalBindLayout::new(&device);
+        let pipelines = render::Pipelines::new(&global_bind_layout, &device, &config);
 
         // UPDATED!
         let camera = camera::Camera::new((0.0, 5.0, 10.0), cgmath::Deg(-90.0), cgmath::Deg(-20.0));
@@ -301,52 +301,6 @@ impl State {
         let depth_texture =
             texture::Texture::create_depth_texture(&device, &config, "depth_texture");
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[
-                    global_bind_layout.get_texture_bind_layout(),
-                    global_bind_layout.get_camera_bind_layout(),
-                    global_bind_layout.get_light_bind_layout(),
-                ],
-                push_constant_ranges: &[],
-            });
-
-        let render_pipeline = {
-            let shader = wgpu::ShaderModuleDescriptor {
-                label: Some("Normal Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
-            };
-            render::create_render_pipeline(
-                &device,
-                &render_pipeline_layout,
-                config.format,
-                Some(texture::Texture::DEPTH_FORMAT),
-                &[model::ModelVertex::desc(), InstanceRaw::desc()],
-                shader,
-            )
-        };
-
-        let light_render_pipeline = {
-            let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Light Pipeline Layout"),
-                bind_group_layouts: &[global_bind_layout.get_camera_bind_layout(), global_bind_layout.get_light_bind_layout()],
-                push_constant_ranges: &[],
-            });
-            let shader = wgpu::ShaderModuleDescriptor {
-                label: Some("Light Shader"),
-                source: wgpu::ShaderSource::Wgsl(include_str!("light.wgsl").into()),
-            };
-            render::create_render_pipeline(
-                &device,
-                &layout,
-                config.format,
-                Some(texture::Texture::DEPTH_FORMAT),
-                &[model::ModelVertex::desc()],
-                shader,
-            )
-        };
-
         let debug_material = {
             let diffuse_bytes = include_bytes!("../res/cobble-diffuse.png");
             let normal_bytes = include_bytes!("../res/cobble-normal.png");
@@ -382,7 +336,6 @@ impl State {
             device,
             queue,
             config,
-            render_pipeline,
             obj_model,
             camera,
             projection,
@@ -397,10 +350,10 @@ impl State {
             light_uniform,
             light_buffer,
             light_bind_group,
-            light_render_pipeline,
             #[allow(dead_code)]
             debug_material,
             mouse_pressed: false,
+            pipelines
         }
     }
 
@@ -505,14 +458,14 @@ impl State {
             });
 
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            render_pass.set_pipeline(&self.light_render_pipeline);
+            render_pass.set_pipeline(self.pipelines.get_light_pipeline());
             render_pass.draw_light_model(
                 &self.obj_model,
                 &self.camera_bind_group,
                 &self.light_bind_group,
             );
 
-            render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_pipeline(self.pipelines.get_render_pipeline());
             render_pass.draw_model_instanced(
                 &self.obj_model,
                 0..self.instances.len() as u32,
