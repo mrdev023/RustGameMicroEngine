@@ -75,21 +75,21 @@ impl Renderer {
             self.surface.configure(&self.device, &self.config);
 
             if let Some(state) = self.state.as_mut() {
-              state.resize(new_size);
+              // state.resize(new_size);
             }
         }
     }
 
     pub fn input(&mut self, event: &WindowEvent) -> bool {
         if let Some(state) = self.state.as_mut() {
-          return state.input(event);
+          // return state.input(event);
         }
         false
     }
 
     pub fn update(&mut self, dt: instant::Duration) {
       if let Some(state) = self.state.as_mut() {
-        state.update(dt);
+        // state.update(dt);
       }
     }
 
@@ -106,7 +106,7 @@ impl Renderer {
             });
 
         if let Some(state) = self.state.as_mut() {
-          state.render(&view, &mut encoder)?;
+          // state.render(&view, &mut encoder)?;
         }
 
         self.queue.submit(iter::once(encoder.finish()));

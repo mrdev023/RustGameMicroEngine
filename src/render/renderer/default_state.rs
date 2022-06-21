@@ -12,7 +12,6 @@ use crate::{
 use super::Renderer;
 
 pub struct DefaultState {
-    renderer: Box<Renderer>,
     obj_model: model::Model,
     camera: camera::Camera,
     projection: camera::Projection,
@@ -34,7 +33,7 @@ pub struct DefaultState {
 }
 
 impl super::State for DefaultState {
-    fn new(renderer: Box<Renderer>) -> Self
+    fn new(renderer: &Renderer) -> Self
     where
         Self: Sized,
     {
@@ -206,20 +205,19 @@ impl super::State for DefaultState {
             debug_material,
             mouse_pressed: false,
             pipelines,
-            renderer,
         }
     }
 
-    fn resize(&mut self, new_size: winit::dpi::PhysicalSize<u32>) {
+    fn resize(&mut self, renderer: &Renderer, new_size: winit::dpi::PhysicalSize<u32>) {
         self.projection.resize(new_size.width, new_size.height);
         self.depth_texture = texture::Texture::create_depth_texture(
-            &self.renderer.device,
-            &self.renderer.config,
+            &renderer.device,
+            &renderer.config,
             "depth_texture",
         );
     }
 
-    fn input(&mut self, event: &winit::event::WindowEvent) -> bool {
+    fn input(&mut self, renderer: &Renderer, event: &winit::event::WindowEvent) -> bool {
         match event {
             WindowEvent::KeyboardInput {
                 input:
@@ -246,11 +244,11 @@ impl super::State for DefaultState {
         }
     }
 
-    fn update(&mut self, dt: instant::Duration) {
+    fn update(&mut self, renderer: &Renderer, dt: instant::Duration) {
         self.camera_controller.update_camera(&mut self.camera, dt);
         self.camera_uniform
             .update_view_proj(&self.camera, &self.projection);
-        self.renderer.queue.write_buffer(
+        renderer.queue.write_buffer(
             &self.camera_buffer,
             0,
             bytemuck::cast_slice(&[self.camera_uniform]),
@@ -262,7 +260,7 @@ impl super::State for DefaultState {
             (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
                 * old_position)
                 .into();
-        self.renderer.queue.write_buffer(
+        renderer.queue.write_buffer(
             &self.light_buffer,
             0,
             bytemuck::cast_slice(&[self.light_uniform]),
@@ -271,6 +269,7 @@ impl super::State for DefaultState {
 
     fn render(
         &mut self,
+        renderer: &Renderer,
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
     ) -> Result<(), wgpu::SurfaceError> {
