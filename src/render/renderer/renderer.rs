@@ -10,7 +10,7 @@ pub struct Renderer {
     pub queue: wgpu::Queue,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub config: wgpu::SurfaceConfiguration,
-    state: Option<Box<dyn State>>
+    state: Option<Box<dyn State>>,
 }
 
 impl Renderer {
@@ -63,7 +63,7 @@ impl Renderer {
             queue,
             config,
             size,
-            state: None
+            state: None,
         }
     }
 
@@ -75,26 +75,26 @@ impl Renderer {
             self.surface.configure(&self.device, &self.config);
 
             if let Some(state) = self.state.as_mut() {
-              state.resize(&self.device, &self.config, new_size);
+                state.resize(&self.device, &self.config, new_size);
             }
         }
     }
 
     pub fn input(&mut self, event: &Event<()>) -> bool {
         if let Some(state) = self.state.as_mut() {
-          return state.input(event);
+            return state.input(event);
         }
         false
     }
 
     pub fn update(&mut self, dt: instant::Duration) {
-      if let Some(state) = self.state.as_mut() {
-        state.update(&self.queue, dt);
-      }
+        if let Some(state) = self.state.as_mut() {
+            state.update(&self.queue, dt);
+        }
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
-      let output = self.surface.get_current_texture()?;
+        let output = self.surface.get_current_texture()?;
         let view = output
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
@@ -106,7 +106,7 @@ impl Renderer {
             });
 
         if let Some(state) = self.state.as_mut() {
-          state.render(&view, &mut encoder)?;
+            state.render(&view, &mut encoder)?;
         }
 
         self.queue.submit(iter::once(encoder.finish()));
@@ -116,6 +116,6 @@ impl Renderer {
     }
 
     pub fn set_state(&mut self, state: Option<Box<dyn State>>) {
-      self.state = state;
+        self.state = state;
     }
 }

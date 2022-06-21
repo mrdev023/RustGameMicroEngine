@@ -222,18 +222,15 @@ impl super::State for DefaultState {
     fn input(&mut self, event: &Event<()>) -> bool {
         match event {
             Event::DeviceEvent {
-                event: DeviceEvent::MouseMotion{ delta, },
+                event: DeviceEvent::MouseMotion { delta },
                 ..
             } => {
                 if self.mouse_pressed {
                     self.camera_controller.process_mouse(delta.0, delta.1);
                 }
                 true
-            },
-            Event::WindowEvent {
-                ref event,
-                ..
-            } => match event {
+            }
+            Event::WindowEvent { ref event, .. } => match event {
                 WindowEvent::KeyboardInput {
                     input:
                         KeyboardInput {

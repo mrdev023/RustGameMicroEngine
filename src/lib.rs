@@ -1,4 +1,4 @@
-use std::{sync::Arc, ops::Deref};
+use std::{ops::Deref, sync::Arc};
 
 use cgmath::prelude::*;
 use winit::{
@@ -9,7 +9,7 @@ use winit::{
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-use crate::render::{Renderer, DefaultState, State};
+use crate::render::{DefaultState, Renderer, State};
 
 mod camera;
 mod model;
@@ -168,7 +168,9 @@ pub async fn run() {
 
     let mut renderer = Arc::from(Renderer::new(&window).await);
     let default_state = Box::from(DefaultState::new(renderer.deref()));
-    Arc::get_mut(&mut renderer).unwrap().set_state(Some(default_state));
+    Arc::get_mut(&mut renderer)
+        .unwrap()
+        .set_state(Some(default_state));
     let mut last_render_time = instant::Instant::now();
     event_loop.run(move |base_event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -179,28 +181,28 @@ pub async fn run() {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == window.id() && !renderer.input(&base_event) => {
-                match event {
-                    #[cfg(not(target_arch="wasm32"))]
-                    WindowEvent::CloseRequested
-                    | WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                state: ElementState::Pressed,
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                ..
-                            },
-                        ..
-                    } => *control_flow = ControlFlow::Exit,
-                    WindowEvent::Resized(physical_size) => {
-                        renderer.resize(*physical_size);
-                    }
-                    WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        renderer.resize(**new_inner_size);
-                    }
-                    _ => { renderer.input(&base_event); }
+            } if window_id == window.id() && !renderer.input(&base_event) => match event {
+                #[cfg(not(target_arch = "wasm32"))]
+                WindowEvent::CloseRequested
+                | WindowEvent::KeyboardInput {
+                    input:
+                        KeyboardInput {
+                            state: ElementState::Pressed,
+                            virtual_keycode: Some(VirtualKeyCode::Escape),
+                            ..
+                        },
+                    ..
+                } => *control_flow = ControlFlow::Exit,
+                WindowEvent::Resized(physical_size) => {
+                    renderer.resize(*physical_size);
                 }
-            }
+                WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
+                    renderer.resize(**new_inner_size);
+                }
+                _ => {
+                    renderer.input(&base_event);
+                }
+            },
             Event::RedrawRequested(window_id) if window_id == window.id() => {
                 let now = instant::Instant::now();
                 let dt = now - last_render_time;
@@ -209,14 +211,18 @@ pub async fn run() {
                 match renderer.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if it's lost or outdated
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => renderer.resize(renderer.size),
+                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                        renderer.resize(renderer.size)
+                    }
                     // The system is out of memory, we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     // We're ignoring timeouts
                     Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
                 }
             }
-            _ => { renderer.input(&base_event); }
+            _ => {
+                renderer.input(&base_event);
+            }
         }
     });
 }
