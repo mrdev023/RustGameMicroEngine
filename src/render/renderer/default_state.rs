@@ -1,4 +1,6 @@
 use cgmath::prelude::*;
+
+#[cfg(not(target_arch="wasm32"))]
 use rayon::prelude::*;
 use wgpu::{util::DeviceExt, Queue};
 use winit::event::{DeviceEvent, ElementState, Event, KeyboardInput, MouseButton, WindowEvent};
@@ -122,8 +124,7 @@ impl super::State for DefaultState {
             &renderer.device,
             &renderer.queue,
             global_bind_layout.get_texture_bind_layout(),
-        ))
-        .unwrap();
+        )).unwrap();
 
         let light_uniform = LightUniform {
             position: [2.0, 2.0, 2.0],
