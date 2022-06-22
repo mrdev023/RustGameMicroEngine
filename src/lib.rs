@@ -9,7 +9,7 @@ use winit::{
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-use crate::render::{DefaultState, Renderer, State};
+use crate::render::{DefaultState, Renderer};
 
 mod camera;
 mod model;
@@ -167,7 +167,7 @@ pub async fn run() {
     }
 
     let mut renderer = Arc::from(Renderer::new(&window).await);
-    let default_state = Box::from(DefaultState::new(renderer.deref()));
+    let default_state = Box::from(DefaultState::new(renderer.deref()).await);
     Arc::get_mut(&mut renderer)
         .unwrap()
         .set_state(Some(default_state));

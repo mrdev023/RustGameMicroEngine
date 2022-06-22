@@ -9,9 +9,6 @@ use wgpu::{CommandEncoder, Queue, TextureView};
 use winit::event::Event;
 
 pub trait State {
-    fn new(renderer: &Renderer) -> Self
-    where
-        Self: Sized;
     fn resize(
         &mut self,
         device: &wgpu::Device,

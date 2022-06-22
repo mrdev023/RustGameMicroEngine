@@ -34,10 +34,8 @@ pub struct DefaultState {
     pipelines: render::Pipelines,
 }
 
-impl super::State for DefaultState {
-    fn new(renderer: &Renderer) -> Self
-    where
-        Self: Sized,
+impl DefaultState {
+    pub async fn new(renderer: &Renderer) -> Self
     {
         let global_bind_layout = render::GlobalBindLayout::new(&renderer.device);
         let pipelines =
@@ -119,12 +117,12 @@ impl super::State for DefaultState {
                 label: Some("camera_bind_group"),
             });
 
-        let obj_model = async_std::task::block_on(resources::load_model(
+        let obj_model = resources::load_model(
             "cube.obj",
             &renderer.device,
             &renderer.queue,
             global_bind_layout.get_texture_bind_layout(),
-        )).unwrap();
+        ).await.unwrap();
 
         let light_uniform = LightUniform {
             position: [2.0, 2.0, 2.0],
@@ -208,7 +206,9 @@ impl super::State for DefaultState {
             pipelines,
         }
     }
+}
 
+impl super::State for DefaultState {
     fn resize(
         &mut self,
         device: &wgpu::Device,
