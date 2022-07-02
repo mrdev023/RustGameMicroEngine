@@ -6,7 +6,7 @@ pub fn create_render_pipeline(
     vertex_layouts: &[wgpu::VertexBufferLayout],
     shader: wgpu::ShaderModuleDescriptor,
 ) -> wgpu::RenderPipeline {
-    let shader = device.create_shader_module(&shader);
+    let shader = device.create_shader_module(shader);
 
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
         label: Some(&format!("{:?}", shader)),
@@ -19,14 +19,14 @@ pub fn create_render_pipeline(
         fragment: Some(wgpu::FragmentState {
             module: &shader,
             entry_point: "fs_main",
-            targets: &[wgpu::ColorTargetState {
+            targets: &[Some(wgpu::ColorTargetState {
                 format: color_format,
                 blend: Some(wgpu::BlendState {
                     alpha: wgpu::BlendComponent::REPLACE,
                     color: wgpu::BlendComponent::REPLACE,
                 }),
                 write_mask: wgpu::ColorWrites::ALL,
-            }],
+            })],
         }),
         primitive: wgpu::PrimitiveState {
             topology: wgpu::PrimitiveTopology::TriangleList,
