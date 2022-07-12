@@ -107,10 +107,9 @@ impl Renderer {
 
         if let Some(state) = self.state.as_mut() {
             state.render(&view, &mut encoder)?;
+            self.queue.submit(iter::once(encoder.finish()));
+            output.present();
         }
-
-        self.queue.submit(iter::once(encoder.finish()));
-        output.present();
 
         Ok(())
     }
