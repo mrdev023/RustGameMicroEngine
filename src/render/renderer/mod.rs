@@ -1,7 +1,3 @@
-mod renderer;
-
-pub use renderer::Renderer;
-
 mod default_state;
 pub use default_state::DefaultState;
 

@@ -2,6 +2,7 @@ use cgmath::prelude::*;
 
 #[cfg(not(target_arch="wasm32"))]
 use rayon::prelude::*;
+use ::render::graphics_renderer::GraphicsRenderer;
 use wgpu::{util::DeviceExt, Queue};
 use winit::event::{DeviceEvent, ElementState, Event, KeyboardInput, MouseButton, WindowEvent};
 
@@ -10,8 +11,6 @@ use crate::{
     model::{self, DrawLight, DrawModel},
     render, resources, texture, CameraUniform, Instance, LightUniform, NUM_INSTANCES_PER_ROW,
 };
-
-use super::Renderer;
 
 pub struct DefaultState {
     obj_model: model::Model,
@@ -35,7 +34,7 @@ pub struct DefaultState {
 }
 
 impl DefaultState {
-    pub async fn new(renderer: &Renderer) -> Self
+    pub async fn new(renderer: &GraphicsRenderer) -> Self
     {
         let global_bind_layout = render::GlobalBindLayout::new(&renderer.device);
         let pipelines =

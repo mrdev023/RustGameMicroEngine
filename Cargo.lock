@@ -1689,6 +1689,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "render"
+version = "0.1.0"
+dependencies = [
+ "wgpu",
+ "winit",
+]
+
+[[package]]
 name = "renderdoc-sys"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2061,6 +2069,7 @@ dependencies = [
  "log",
  "pollster",
  "rayon",
+ "render",
  "reqwest",
  "tobj",
  "wasm-bindgen",

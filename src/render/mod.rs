@@ -4,4 +4,4 @@ pub use pipelines::utils::create_render_pipeline;
 pub use pipelines::{GlobalBindLayout, Pipelines};
 
 mod renderer;
-pub use renderer::{DefaultState, Renderer, State};
+pub use renderer::{DefaultState, State};

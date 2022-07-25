@@ -1,20 +1,18 @@
 use std::iter;
 
-use winit::{event::Event, window::Window};
+use wgpu::{CommandEncoder, TextureView};
+use winit::window::Window;
 
-use super::State;
-
-pub struct Renderer {
+pub struct GraphicsRenderer {
     pub surface: wgpu::Surface,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub config: wgpu::SurfaceConfiguration,
-    state: Option<Box<dyn State>>,
 }
 
-impl Renderer {
-    pub async fn new(window: &Window) -> Self {
+impl GraphicsRenderer {
+    pub async fn initialize(window: &Window) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
@@ -63,7 +61,6 @@ impl Renderer {
             queue,
             config,
             size,
-            state: None,
         }
     }
 
@@ -73,27 +70,13 @@ impl Renderer {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
-
-            if let Some(state) = self.state.as_mut() {
-                state.resize(&self.device, &self.config, new_size);
-            }
         }
     }
 
-    pub fn input(&mut self, event: &Event<()>) -> bool {
-        if let Some(state) = self.state.as_mut() {
-            return state.input(event);
-        }
-        false
-    }
-
-    pub fn update(&mut self, dt: instant::Duration) {
-        if let Some(state) = self.state.as_mut() {
-            state.update(&self.queue, dt);
-        }
-    }
-
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render_frame<T>(&mut self, render: T) -> Result<(), wgpu::SurfaceError>
+    where
+        T: Fn(&TextureView, &mut CommandEncoder) -> Result<(), wgpu::SurfaceError>,
+    {
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -105,16 +88,10 @@ impl Renderer {
                 label: Some("Render Encoder"),
             });
 
-        if let Some(state) = self.state.as_mut() {
-            state.render(&view, &mut encoder)?;
-            self.queue.submit(iter::once(encoder.finish()));
-            output.present();
-        }
+        render(&view, &mut encoder)?;
+        self.queue.submit(iter::once(encoder.finish()));
+        output.present();
 
         Ok(())
-    }
-
-    pub fn set_state(&mut self, state: Option<Box<dyn State>>) {
-        self.state = state;
     }
 }

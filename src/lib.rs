@@ -1,6 +1,7 @@
 use std::{ops::Deref, sync::Arc};
 
 use cgmath::prelude::*;
+use ::render::graphics_renderer::GraphicsRenderer;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -9,7 +10,7 @@ use winit::{
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-use crate::render::{DefaultState, Renderer};
+use crate::render::{DefaultState, State};
 
 mod camera;
 mod model;
@@ -156,22 +157,21 @@ pub async fn run() {
             .expect("Couldn't append canvas to document body.");
     }
 
-    let mut renderer = Arc::from(Renderer::new(&window).await);
-    let default_state = Box::from(DefaultState::new(renderer.deref()).await);
-    Arc::get_mut(&mut renderer)
-        .unwrap()
-        .set_state(Some(default_state));
+    let mut renderer = Arc::from(GraphicsRenderer::initialize(&window).await);
+    let mut default_state = Arc::from(DefaultState::new(renderer.deref()).await);
+
     let mut last_render_time = instant::Instant::now();
     event_loop.run(move |base_event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         let renderer = Arc::get_mut(&mut renderer).unwrap();
+        let state = Arc::get_mut(&mut default_state).unwrap();
 
         match base_event {
             Event::MainEventsCleared => window.request_redraw(),
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == window.id() && !renderer.input(&base_event) => match event {
+            } if window_id == window.id() && !state.input(&base_event) => match event {
                 #[cfg(not(target_arch = "wasm32"))]
                 WindowEvent::CloseRequested
                 | WindowEvent::KeyboardInput {
@@ -190,15 +190,20 @@ pub async fn run() {
                     renderer.resize(**new_inner_size);
                 }
                 _ => {
-                    renderer.input(&base_event);
+                    state.input(&base_event);
                 }
             },
             Event::RedrawRequested(window_id) if window_id == window.id() => {
                 let now = instant::Instant::now();
                 let dt = now - last_render_time;
                 last_render_time = now;
-                renderer.update(dt);
-                match renderer.render() {
+                state.update(&renderer.queue, dt);
+
+                match renderer.render_frame(|view, command| {
+                    let mut renderable = Arc::clone(&default_state);
+                    let state = Arc::get_mut(&mut renderable).unwrap();
+                    state.render(view, command)
+                }) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         renderer.resize(renderer.size)
@@ -208,7 +213,7 @@ pub async fn run() {
                 }
             }
             _ => {
-                renderer.input(&base_event);
+                state.input(&base_event);
             }
         }
     });
