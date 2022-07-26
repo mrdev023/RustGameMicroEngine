@@ -23,6 +23,8 @@ wgpu = { version = "0.13"}
 winit = "0.26"
 instant = "0.1"
 async-std = "1"
+profiling = "1.0.6"
+tracy-client = { git = "https://github.com/nagisa/rust_tracy_client.git", branch = "main" }
 
 [dependencies.image]
 version = "0.24"

@@ -133,6 +133,9 @@ pub async fn run() {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    tracy_client::Client::start();
+
     let event_loop = EventLoop::new();
     let title = env!("CARGO_PKG_NAME");
     let window = winit::window::WindowBuilder::new()
@@ -197,8 +200,13 @@ pub async fn run() {
                 let now = instant::Instant::now();
                 let dt = now - last_render_time;
                 last_render_time = now;
+
+                #[cfg(not(target_arch = "wasm32"))]
+                tracy_client::Client::running().unwrap().span(tracy_client::span_location!("update"), 0);
                 state.update(&renderer.queue, dt);
 
+                #[cfg(not(target_arch = "wasm32"))]
+                tracy_client::Client::running().unwrap().span(tracy_client::span_location!("render"), 0);
                 match renderer.render_frame(|view, command| {
                     default_state.render(view, command)
                 }) {
@@ -209,6 +217,8 @@ pub async fn run() {
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
                 }
+                #[cfg(not(target_arch = "wasm32"))]
+                tracy_client::Client::running().unwrap().frame_mark();
             }
             _ => {
                 state.input(&base_event);
