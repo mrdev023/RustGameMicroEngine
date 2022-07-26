@@ -1,3 +1,6 @@
+#[global_allocator]
+static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> = tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
+
 use std::{ops::Deref, sync::Arc};
 
 use cgmath::prelude::*;
@@ -135,6 +138,9 @@ pub async fn run() {
 
     #[cfg(not(target_arch = "wasm32"))]
     tracy_client::Client::start();
+
+    #[cfg(not(target_arch = "wasm32"))]
+    tracy_client::Client::running().unwrap().set_thread_name("MAIN THREAD");
 
     let event_loop = EventLoop::new();
     let title = env!("CARGO_PKG_NAME");
