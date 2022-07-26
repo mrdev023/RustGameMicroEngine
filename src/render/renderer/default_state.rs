@@ -282,7 +282,7 @@ impl super::State for DefaultState {
     }
 
     fn render(
-        &mut self,
+        &self,
         view: &wgpu::TextureView,
         encoder: &mut wgpu::CommandEncoder,
     ) -> Result<(), wgpu::SurfaceError> {

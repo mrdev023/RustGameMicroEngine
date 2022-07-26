@@ -200,9 +200,7 @@ pub async fn run() {
                 state.update(&renderer.queue, dt);
 
                 match renderer.render_frame(|view, command| {
-                    let mut renderable = Arc::clone(&default_state);
-                    let state = Arc::get_mut(&mut renderable).unwrap();
-                    state.render(view, command)
+                    default_state.render(view, command)
                 }) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {

@@ -14,7 +14,7 @@ pub trait State {
     fn input(&mut self, event: &Event<()>) -> bool;
     fn update(&mut self, queue: &Queue, dt: instant::Duration);
     fn render(
-        &mut self,
+        &self,
         view: &TextureView,
         encoder: &mut CommandEncoder,
     ) -> Result<(), wgpu::SurfaceError>;
