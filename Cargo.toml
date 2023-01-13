@@ -12,19 +12,19 @@ render = { path = "crates/render" }
 
 cfg-if = "1"
 anyhow = "1.0"
-bytemuck = { version = "1.9.1", features = [ "derive" ] }
+bytemuck = { version = "1.12", features = [ "derive" ] }
 cgmath = "0.18"
-env_logger = "0.9"
+env_logger = "0.10"
 pollster = "0.2"
 log = "0.4"
-rayon = "1.5.3"
+rayon = "1.6"
 tobj = { version = "3.2", features = ["async"]}
-wgpu = { version = "0.13"}
-winit = "0.26"
+wgpu = { version = "0.14" }
+winit = "0.27"
 instant = "0.1"
 async-std = "1"
-profiling = "1.0.6"
-tracy-client = { git = "https://github.com/nagisa/rust_tracy_client.git", branch = "main" }
+profiling = "1.0"
+tracy-client = "0.15"
 
 [dependencies.image]
 version = "0.24"
@@ -35,7 +35,7 @@ features = ["png", "jpeg"]
 reqwest = { version = "0.11" }
 console_error_panic_hook = "0.1"
 console_log = "0.2"
-wgpu = { version = "0.13", features = ["webgl"]}
+wgpu = { version = "0.14", features = ["webgl"]}
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = [
