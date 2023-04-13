@@ -17,8 +17,8 @@ impl GraphicsRenderer {
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
-        let instance = wgpu::Instance::new(wgpu::Backends::all());
-        let surface = unsafe { instance.create_surface(window) };
+        let instance = wgpu::Instance::default();
+        let surface = unsafe { instance.create_surface(window).unwrap() };
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -45,13 +45,18 @@ impl GraphicsRenderer {
             .await
             .unwrap();
 
+        let caps = surface.get_capabilities(&adapter);
+        let format = caps.formats[0];
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: surface.get_supported_formats(&adapter)[0],
+            format: format,
             width: size.width,
             height: size.height,
             present_mode: wgpu::PresentMode::Fifo,
-            alpha_mode: wgpu::CompositeAlphaMode::Auto
+            alpha_mode: wgpu::CompositeAlphaMode::Auto,
+            view_formats: vec![
+                format
+            ]
         };
 
         surface.configure(&device, &config);
