@@ -1,5 +1,5 @@
 [package]
-name = "tuto1"
+name = "rust_micro_game_engine"
 version = "0.1.0"
 authors = ["Florian RICHER <florian.richer@unova.fr>"]
 edition = "2021"
@@ -14,20 +14,20 @@ cfg-if = "1"
 anyhow = "1.0"
 bytemuck = { version = "1.13", features = [ "derive" ] }
 cgmath = "0.18"
-env_logger = "0.10"
-pollster = "0.3.0"
+env_logger = "0.11"
+pollster = "0.4.0"
 log = "0.4"
 rayon = "1.7"
-tobj = { version = "3.2", features = ["async"]}
-wgpu = { version = "0.15" }
-winit = "0.28"
+tobj = { version = "4.0", features = ["async"]}
+wgpu = { version = "23" }
+winit = "0.30"
 instant = "0.1"
 async-std = "1.12"
 profiling = "1.0"
-tracy-client = "0.15"
+tracy-client = "0.17"
 
 [dependencies.image]
-version = "0.24"
+version = "0.25"
 default-features = false
 features = ["png", "jpeg"]
 

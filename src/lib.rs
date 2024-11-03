@@ -142,12 +142,30 @@ pub async fn run() {
     #[cfg(not(target_arch = "wasm32"))]
     tracy_client::Client::running().unwrap().set_thread_name("MAIN THREAD");
 
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::new().unwrap();
     let title = env!("CARGO_PKG_NAME");
-    let window = winit::window::WindowBuilder::new()
-        .with_title(title)
-        .build(&event_loop)
-        .unwrap();
+
+    let mut window_attributes = winit::window::WindowAttributes::default()
+        .with_title(title);
+
+    #[cfg(any(x11_platform, wayland_platform))]
+    if let Some(token) = event_loop.read_token_from_env() {
+        startup_notify::reset_activation_token_env();
+        info!("Using token {:?} to activate a window", token);
+        window_attributes = window_attributes.with_activation_token(token);
+    }
+
+    #[cfg(macos_platform)]
+    if let Some(tab_id) = _tab_id {
+        window_attributes = window_attributes.with_tabbing_identifier(&tab_id);
+    }
+
+    #[cfg(web_platform)]
+    {
+        window_attributes = window_attributes.with_append(true);
+    }
+
+    let window = event_loop.create_window(window_attributes).unwrap();
 
     #[cfg(target_arch = "wasm32")]
     {
@@ -170,7 +188,7 @@ pub async fn run() {
     let mut default_state = Arc::from(DefaultState::new(renderer.deref()).await);
 
     let mut last_render_time = instant::Instant::now();
-    event_loop.run(move |base_event, _, control_flow| {
+    event_loop.run_app(move |base_event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         let renderer = Arc::get_mut(&mut renderer).unwrap();
         let state = Arc::get_mut(&mut default_state).unwrap();

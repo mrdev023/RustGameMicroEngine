@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "rust-lang.rust-analyzer", // Rust LSP
+    "tamasfe.even-better-toml", // TOML language support
+    "nemurubaka.cratesx", // Add usefull tools to manage Crates
+  ]
+}
