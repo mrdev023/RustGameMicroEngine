@@ -240,6 +240,7 @@ impl ApplicationHandler for App {
                         }
                         Err(wgpu::SurfaceError::OutOfMemory) => event_loop.exit(),
                         Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
+                        Err(wgpu::SurfaceError::Other) => log::warn!("Surface error: Other"),
                     }
                     #[cfg(not(target_arch = "wasm32"))]
                     tracy_client::Client::running().unwrap().frame_mark();

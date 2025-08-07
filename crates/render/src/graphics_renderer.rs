@@ -40,8 +40,9 @@ impl GraphicsRenderer {
                     } else {
                         wgpu::Limits::default()
                     },
+                    memory_hints: wgpu::MemoryHints::default(),
+                    trace: wgpu::Trace::Off, // Trace path
                 },
-                None, // Trace path
             )
             .await
             .unwrap();
