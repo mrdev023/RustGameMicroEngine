@@ -1,8 +1,8 @@
 use cgmath::prelude::*;
 
-#[cfg(not(target_arch="wasm32"))]
-use rayon::prelude::*;
 use ::render::graphics_renderer::GraphicsRenderer;
+#[cfg(not(target_arch = "wasm32"))]
+use rayon::prelude::*;
 use wgpu::{util::DeviceExt, Queue};
 use winit::event::{DeviceEvent, ElementState, Event, KeyboardInput, MouseButton, WindowEvent};
 
@@ -34,8 +34,7 @@ pub struct DefaultState {
 }
 
 impl DefaultState {
-    pub async fn new(renderer: &GraphicsRenderer) -> Self
-    {
+    pub async fn new(renderer: &GraphicsRenderer) -> Self {
         let global_bind_layout = render::GlobalBindLayout::new(&renderer.device);
         let pipelines =
             render::Pipelines::new(&global_bind_layout, &renderer.device, &renderer.config);
@@ -121,7 +120,9 @@ impl DefaultState {
             &renderer.device,
             &renderer.queue,
             global_bind_layout.get_texture_bind_layout(),
-        ).await.unwrap();
+        )
+        .await
+        .unwrap();
 
         let light_uniform = LightUniform {
             position: [2.0, 2.0, 2.0],

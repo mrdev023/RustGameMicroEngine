@@ -1,10 +1,11 @@
 #[global_allocator]
-static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> = tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
+static GLOBAL: tracy_client::ProfiledAllocator<std::alloc::System> =
+    tracy_client::ProfiledAllocator::new(std::alloc::System, 100);
 
 use std::{ops::Deref, sync::Arc};
 
-use cgmath::prelude::*;
 use ::render::graphics_renderer::GraphicsRenderer;
+use cgmath::prelude::*;
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop},
@@ -140,7 +141,9 @@ pub async fn run() {
     tracy_client::Client::start();
 
     #[cfg(not(target_arch = "wasm32"))]
-    tracy_client::Client::running().unwrap().set_thread_name("MAIN THREAD");
+    tracy_client::Client::running()
+        .unwrap()
+        .set_thread_name("MAIN THREAD");
 
     let event_loop = EventLoop::new();
     let title = env!("CARGO_PKG_NAME");
@@ -208,14 +211,16 @@ pub async fn run() {
                 last_render_time = now;
 
                 #[cfg(not(target_arch = "wasm32"))]
-                tracy_client::Client::running().unwrap().span(tracy_client::span_location!("update"), 0);
+                tracy_client::Client::running()
+                    .unwrap()
+                    .span(tracy_client::span_location!("update"), 0);
                 state.update(&renderer.queue, dt);
 
                 #[cfg(not(target_arch = "wasm32"))]
-                tracy_client::Client::running().unwrap().span(tracy_client::span_location!("render"), 0);
-                match renderer.render_frame(|view, command| {
-                    default_state.render(view, command)
-                }) {
+                tracy_client::Client::running()
+                    .unwrap()
+                    .span(tracy_client::span_location!("render"), 0);
+                match renderer.render_frame(|view, command| default_state.render(view, command)) {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
                         renderer.resize(renderer.size)
