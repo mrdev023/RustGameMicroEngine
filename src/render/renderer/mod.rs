@@ -5,6 +5,7 @@ use wgpu::{CommandEncoder, Queue, TextureView};
 use winit::event::Event;
 
 pub trait State {
+    #[allow(dead_code)]
     fn resize(
         &mut self,
         device: &wgpu::Device,

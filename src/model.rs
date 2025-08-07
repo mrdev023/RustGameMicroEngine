@@ -54,6 +54,7 @@ impl Vertex for ModelVertex {
     }
 }
 
+#[allow(dead_code)]
 pub struct Material {
     pub name: String,
     pub diffuse_texture: texture::Texture,
@@ -102,6 +103,7 @@ impl Material {
 }
 
 pub struct Mesh {
+    #[allow(dead_code)]
     pub name: String,
     pub vertex_buffer: wgpu::Buffer,
     pub index_buffer: wgpu::Buffer,
@@ -115,6 +117,7 @@ pub struct Model {
 }
 
 pub trait DrawModel<'a> {
+    #[allow(dead_code)]
     fn draw_mesh(
         &mut self,
         mesh: &'a Mesh,
@@ -131,6 +134,7 @@ pub trait DrawModel<'a> {
         light_bind_group: &'a wgpu::BindGroup,
     );
 
+    #[allow(dead_code)]
     fn draw_model(
         &mut self,
         model: &'a Model,
@@ -144,6 +148,7 @@ pub trait DrawModel<'a> {
         camera_bind_group: &'a wgpu::BindGroup,
         light_bind_group: &'a wgpu::BindGroup,
     );
+    #[allow(dead_code)]
     fn draw_model_instanced_with_material(
         &mut self,
         model: &'a Model,
@@ -233,6 +238,7 @@ where
 }
 
 pub trait DrawLight<'a> {
+    #[allow(dead_code)]
     fn draw_light_mesh(
         &mut self,
         mesh: &'a Mesh,
