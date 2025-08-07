@@ -1,10 +1,11 @@
 use std::iter;
+use std::sync::Arc;
 
 use wgpu::{CommandEncoder, TextureView};
 use winit::window::Window;
 
 pub struct GraphicsRenderer {
-    pub surface: wgpu::Surface,
+    pub surface: wgpu::Surface<'static>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub size: winit::dpi::PhysicalSize<u32>,
@@ -12,13 +13,13 @@ pub struct GraphicsRenderer {
 }
 
 impl GraphicsRenderer {
-    pub async fn initialize(window: &Window) -> Self {
+    pub async fn initialize(window: Arc<Window>) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::default();
-        let surface = unsafe { instance.create_surface(window).unwrap() };
+        let surface = instance.create_surface(window.clone()).unwrap();
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -31,10 +32,10 @@ impl GraphicsRenderer {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::empty(),
                     // WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web we'll have to disable some.
-                    limits: if cfg!(target_arch = "wasm32") {
+                    required_limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
                         wgpu::Limits::default()
@@ -56,7 +57,8 @@ impl GraphicsRenderer {
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![
                 format
-            ]
+            ],
+            desired_maximum_frame_latency: 2,
         };
 
         surface.configure(&device, &config);

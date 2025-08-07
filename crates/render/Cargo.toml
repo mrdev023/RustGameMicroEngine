@@ -9,5 +9,5 @@ edition = "2021"
 crate_type = ["dylib"]
 
 [dependencies]
-winit = "0.28"
-wgpu = { version = "0.15"}
+winit = "0.30"
+wgpu = { version = "0.19"}
