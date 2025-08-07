@@ -267,10 +267,13 @@ impl super::State for DefaultState {
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
 
-        // Update the light
+        // Update the light - make animation frame-rate independent
         let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
+        // Rotate at 60 degrees per second instead of 1 degree per frame
+        let rotation_speed = 60.0; // degrees per second
+        let angle = rotation_speed * dt.as_secs_f32();
         self.light_uniform.position =
-            (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
+            (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(angle))
                 * old_position)
                 .into();
         queue.write_buffer(
