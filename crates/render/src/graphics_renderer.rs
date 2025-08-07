@@ -48,17 +48,32 @@ impl GraphicsRenderer {
 
         let caps = surface.get_capabilities(&adapter);
         let format = caps.formats[0];
+        
+        // Select the best present mode to avoid semaphore reuse issues
+        let present_mode = caps
+            .present_modes
+            .iter()
+            .copied()
+            .find(|&mode| mode == wgpu::PresentMode::Mailbox)
+            .unwrap_or_else(|| {
+                caps.present_modes
+                    .iter()
+                    .copied()
+                    .find(|&mode| mode == wgpu::PresentMode::Fifo)
+                    .unwrap_or(caps.present_modes[0])
+            });
+        
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![
                 format
             ],
-            desired_maximum_frame_latency: 2,
+            desired_maximum_frame_latency: 3,
         };
 
         surface.configure(&device, &config);
