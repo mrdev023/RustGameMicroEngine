@@ -50,8 +50,12 @@ impl GraphicsRenderer {
         let caps = surface.get_capabilities(&adapter);
         let format = caps.formats[0];
         
-        // Use the first supported present mode to avoid forcing specific modes
-        let present_mode = caps.present_modes[0];
+        // Check if Immediate mode is available first, otherwise use first supported mode
+        let present_mode = if caps.present_modes.contains(&wgpu::PresentMode::Immediate) {
+            wgpu::PresentMode::Immediate
+        } else {
+            caps.present_modes[0]
+        };
         
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
