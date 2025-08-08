@@ -50,21 +50,8 @@ impl GraphicsRenderer {
         let caps = surface.get_capabilities(&adapter);
         let format = caps.formats[0];
         
-        // Select present mode to avoid semaphore reuse issues
-        // Immediate mode has no synchronization requirements and should avoid semaphore conflicts
-        let present_mode = caps
-            .present_modes
-            .iter()
-            .copied()
-            .find(|&mode| mode == wgpu::PresentMode::Immediate)
-            .unwrap_or_else(|| {
-                // Fallback to Fifo with higher latency if Immediate is not available
-                caps.present_modes
-                    .iter()
-                    .copied()
-                    .find(|&mode| mode == wgpu::PresentMode::Fifo)
-                    .unwrap_or(caps.present_modes[0])
-            });
+        // Use the first supported present mode to avoid forcing specific modes
+        let present_mode = caps.present_modes[0];
         
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
