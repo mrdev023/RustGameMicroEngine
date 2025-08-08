@@ -32,7 +32,7 @@ impl ModelPipeline {
                 source: wgpu::ShaderSource::Wgsl(include_str!("model.wgsl").into()),
             };
             render::create_render_pipeline(
-                &device,
+                device,
                 &render_pipeline_layout,
                 config.format,
                 Some(texture::Texture::DEPTH_FORMAT),

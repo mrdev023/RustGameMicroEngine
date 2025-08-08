@@ -99,7 +99,7 @@ impl DefaultState {
 
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         let instance_buffer =
-            (&renderer.device).create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            renderer.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Instance Buffer"),
                 contents: bytemuck::cast_slice(&instance_data),
                 usage: wgpu::BufferUsages::VERTEX,
@@ -216,7 +216,7 @@ impl super::State for DefaultState {
     ) {
         self.projection.resize(new_size.width, new_size.height);
         self.depth_texture =
-            texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+            texture::Texture::create_depth_texture(device, config, "depth_texture");
     }
 
     fn input(&mut self, event: &Event<()>) -> bool {
@@ -291,7 +291,7 @@ impl super::State for DefaultState {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
+                view,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
