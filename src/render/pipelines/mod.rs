@@ -2,9 +2,6 @@ mod light;
 mod model;
 pub mod utils;
 
-pub use light::LightPipeline;
-pub use model::ModelPipeline;
-
 pub struct GlobalBindLayout {
     texture: wgpu::BindGroupLayout,
     light: wgpu::BindGroupLayout,

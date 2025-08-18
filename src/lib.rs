@@ -7,7 +7,10 @@ use cgmath::prelude::*;
 use ::render::graphics_renderer::GraphicsRenderer;
 use winit::{
     event::*,
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ActiveEventLoop, EventLoop},
+    keyboard::{KeyCode, PhysicalKey},
+    application::ApplicationHandler,
+    window::{Window, WindowId},
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -125,6 +128,137 @@ struct LightUniform {
     _padding2: u32,
 }
 
+struct App {
+    window: Option<Arc<Window>>,
+    renderer: Option<Arc<GraphicsRenderer>>,
+    default_state: Option<Arc<DefaultState>>,
+    last_render_time: instant::Instant,
+}
+
+impl App {
+    fn new() -> Self {
+        Self {
+            window: None,
+            renderer: None,
+            default_state: None,
+            last_render_time: instant::Instant::now(),
+        }
+    }
+}
+
+impl ApplicationHandler for App {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        let title = env!("CARGO_PKG_NAME");
+        let window_attributes = Window::default_attributes()
+            .with_title(title);
+        let window = Arc::new(event_loop.create_window(window_attributes).unwrap());
+        
+        #[cfg(target_arch = "wasm32")]
+        {
+            use winit::dpi::PhysicalSize;
+            window.set_inner_size(PhysicalSize::new(450, 400));
+
+            use winit::platform::web::WindowExtWebSys;
+            web_sys::window()
+                .and_then(|win| win.document())
+                .and_then(|doc| {
+                    let dst = doc.get_element_by_id("wasm-example")?;
+                    let canvas = web_sys::Element::from(window.canvas());
+                    dst.append_child(&canvas).ok()?;
+                    Some(())
+                })
+                .expect("Couldn't append canvas to document body.");
+        }
+
+        let renderer = pollster::block_on(async {
+            Arc::from(GraphicsRenderer::initialize(window.clone()).await)
+        });
+        
+        let default_state = pollster::block_on(async {
+            Arc::from(DefaultState::new(renderer.deref()).await)
+        });
+
+        self.window = Some(window);
+        self.renderer = Some(renderer);
+        self.default_state = Some(default_state);
+    }
+
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        let window = self.window.as_ref().unwrap();
+        let renderer = Arc::get_mut(self.renderer.as_mut().unwrap()).unwrap();
+        let state = Arc::get_mut(self.default_state.as_mut().unwrap()).unwrap();
+        
+        if window_id != window.id() {
+            return;
+        }
+
+        let base_event = Event::WindowEvent {
+            window_id,
+            event: event.clone(),
+        };
+
+        if !state.input(&base_event) {
+            match event {
+                #[cfg(not(target_arch = "wasm32"))]
+                WindowEvent::CloseRequested
+                | WindowEvent::KeyboardInput {
+                    event: KeyEvent {
+                        state: ElementState::Pressed,
+                        physical_key: PhysicalKey::Code(KeyCode::Escape),
+                        ..
+                    },
+                    ..
+                } => event_loop.exit(),
+                WindowEvent::Resized(physical_size) => {
+                    renderer.resize(physical_size);
+                }
+                WindowEvent::ScaleFactorChanged { .. } => {
+                    renderer.resize(window.inner_size());
+                }
+                WindowEvent::RedrawRequested => {
+                    let now = instant::Instant::now();
+                    let dt = now - self.last_render_time;
+                    self.last_render_time = now;
+
+                    #[cfg(not(target_arch = "wasm32"))]
+                    tracy_client::Client::running().unwrap().span(tracy_client::span_location!("update"), 0);
+                    state.update(&renderer.queue, dt);
+
+                    #[cfg(not(target_arch = "wasm32"))]
+                    tracy_client::Client::running().unwrap().span(tracy_client::span_location!("render"), 0);
+                    match renderer.render_frame(|view, command| {
+                        state.render(view, command)
+                    }) {
+                        Ok(_) => {}
+                        Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                            renderer.resize(renderer.size)
+                        }
+                        Err(wgpu::SurfaceError::OutOfMemory) => event_loop.exit(),
+                        Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
+                        Err(wgpu::SurfaceError::Other) => log::warn!("Surface error: Other"),
+                    }
+                    #[cfg(not(target_arch = "wasm32"))]
+                    tracy_client::Client::running().unwrap().frame_mark();
+                }
+                _ => {
+                    state.input(&base_event);
+                }
+            }
+        }
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(window) = &self.window {
+            window.request_redraw();
+        }
+    }
+}
+
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(start))]
 pub async fn run() {
     cfg_if::cfg_if! {
@@ -142,93 +276,7 @@ pub async fn run() {
     #[cfg(not(target_arch = "wasm32"))]
     tracy_client::Client::running().unwrap().set_thread_name("MAIN THREAD");
 
-    let event_loop = EventLoop::new();
-    let title = env!("CARGO_PKG_NAME");
-    let window = winit::window::WindowBuilder::new()
-        .with_title(title)
-        .build(&event_loop)
-        .unwrap();
-
-    #[cfg(target_arch = "wasm32")]
-    {
-        use winit::dpi::PhysicalSize;
-        window.set_inner_size(PhysicalSize::new(450, 400));
-
-        use winit::platform::web::WindowExtWebSys;
-        web_sys::window()
-            .and_then(|win| win.document())
-            .and_then(|doc| {
-                let dst = doc.get_element_by_id("wasm-example")?;
-                let canvas = web_sys::Element::from(window.canvas());
-                dst.append_child(&canvas).ok()?;
-                Some(())
-            })
-            .expect("Couldn't append canvas to document body.");
-    }
-
-    let mut renderer = Arc::from(GraphicsRenderer::initialize(&window).await);
-    let mut default_state = Arc::from(DefaultState::new(renderer.deref()).await);
-
-    let mut last_render_time = instant::Instant::now();
-    event_loop.run(move |base_event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-        let renderer = Arc::get_mut(&mut renderer).unwrap();
-        let state = Arc::get_mut(&mut default_state).unwrap();
-
-        match base_event {
-            Event::MainEventsCleared => window.request_redraw(),
-            Event::WindowEvent {
-                ref event,
-                window_id,
-            } if window_id == window.id() && !state.input(&base_event) => match event {
-                #[cfg(not(target_arch = "wasm32"))]
-                WindowEvent::CloseRequested
-                | WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
-                            state: ElementState::Pressed,
-                            virtual_keycode: Some(VirtualKeyCode::Escape),
-                            ..
-                        },
-                    ..
-                } => *control_flow = ControlFlow::Exit,
-                WindowEvent::Resized(physical_size) => {
-                    renderer.resize(*physical_size);
-                }
-                WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                    renderer.resize(**new_inner_size);
-                }
-                _ => {
-                    state.input(&base_event);
-                }
-            },
-            Event::RedrawRequested(window_id) if window_id == window.id() => {
-                let now = instant::Instant::now();
-                let dt = now - last_render_time;
-                last_render_time = now;
-
-                #[cfg(not(target_arch = "wasm32"))]
-                tracy_client::Client::running().unwrap().span(tracy_client::span_location!("update"), 0);
-                state.update(&renderer.queue, dt);
-
-                #[cfg(not(target_arch = "wasm32"))]
-                tracy_client::Client::running().unwrap().span(tracy_client::span_location!("render"), 0);
-                match renderer.render_frame(|view, command| {
-                    default_state.render(view, command)
-                }) {
-                    Ok(_) => {}
-                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                        renderer.resize(renderer.size)
-                    }
-                    Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
-                    Err(wgpu::SurfaceError::Timeout) => log::warn!("Surface timeout"),
-                }
-                #[cfg(not(target_arch = "wasm32"))]
-                tracy_client::Client::running().unwrap().frame_mark();
-            }
-            _ => {
-                state.input(&base_event);
-            }
-        }
-    });
+    let event_loop = EventLoop::new().unwrap();
+    let mut app = App::new();
+    event_loop.run_app(&mut app).unwrap();
 }

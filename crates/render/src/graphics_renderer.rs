@@ -1,10 +1,11 @@
 use std::iter;
+use std::sync::Arc;
 
 use wgpu::{CommandEncoder, TextureView};
 use winit::window::Window;
 
 pub struct GraphicsRenderer {
-    pub surface: wgpu::Surface,
+    pub surface: wgpu::Surface<'static>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
     pub size: winit::dpi::PhysicalSize<u32>,
@@ -12,13 +13,13 @@ pub struct GraphicsRenderer {
 }
 
 impl GraphicsRenderer {
-    pub async fn initialize(window: &Window) -> Self {
+    pub async fn initialize(window: Arc<Window>) -> Self {
         let size = window.inner_size();
 
         // The instance is a handle to our GPU
         // BackendBit::PRIMARY => Vulkan + Metal + DX12 + Browser WebGPU
         let instance = wgpu::Instance::default();
-        let surface = unsafe { instance.create_surface(window).unwrap() };
+        let surface = instance.create_surface(window.clone()).unwrap();
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
                 power_preference: wgpu::PowerPreference::default(),
@@ -31,32 +32,43 @@ impl GraphicsRenderer {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: None,
-                    features: wgpu::Features::empty(),
+                    required_features: wgpu::Features::empty(),
                     // WebGL doesn't support all of wgpu's features, so if
                     // we're building for the web we'll have to disable some.
-                    limits: if cfg!(target_arch = "wasm32") {
+                    required_limits: if cfg!(target_arch = "wasm32") {
                         wgpu::Limits::downlevel_webgl2_defaults()
                     } else {
                         wgpu::Limits::default()
                     },
+                    memory_hints: wgpu::MemoryHints::default(),
+                    trace: wgpu::Trace::Off, // Trace path
                 },
-                None, // Trace path
             )
             .await
             .unwrap();
 
         let caps = surface.get_capabilities(&adapter);
         let format = caps.formats[0];
+        
+        // Check if Immediate mode is available first, otherwise use first supported mode
+        let present_mode = if caps.present_modes.contains(&wgpu::PresentMode::Immediate) {
+            wgpu::PresentMode::Immediate
+        } else {
+            caps.present_modes[0]
+        };
+        
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: format,
             width: size.width,
             height: size.height,
-            present_mode: wgpu::PresentMode::Fifo,
+            present_mode,
             alpha_mode: wgpu::CompositeAlphaMode::Auto,
             view_formats: vec![
                 format
-            ]
+            ],
+            // Increase frame latency further to provide more buffering
+            desired_maximum_frame_latency: 4,
         };
 
         surface.configure(&device, &config);

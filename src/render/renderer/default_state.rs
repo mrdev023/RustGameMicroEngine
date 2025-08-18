@@ -4,7 +4,7 @@ use cgmath::prelude::*;
 use rayon::prelude::*;
 use ::render::graphics_renderer::GraphicsRenderer;
 use wgpu::{util::DeviceExt, Queue};
-use winit::event::{DeviceEvent, ElementState, Event, KeyboardInput, MouseButton, WindowEvent};
+use winit::event::{DeviceEvent, ElementState, Event, MouseButton, WindowEvent, KeyEvent};
 
 use crate::{
     camera,
@@ -99,7 +99,7 @@ impl DefaultState {
 
         let instance_data = instances.iter().map(Instance::to_raw).collect::<Vec<_>>();
         let instance_buffer =
-            (&renderer.device).create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            renderer.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Instance Buffer"),
                 contents: bytemuck::cast_slice(&instance_data),
                 usage: wgpu::BufferUsages::VERTEX,
@@ -216,7 +216,7 @@ impl super::State for DefaultState {
     ) {
         self.projection.resize(new_size.width, new_size.height);
         self.depth_texture =
-            texture::Texture::create_depth_texture(&device, &config, "depth_texture");
+            texture::Texture::create_depth_texture(device, config, "depth_texture");
     }
 
     fn input(&mut self, event: &Event<()>) -> bool {
@@ -232,12 +232,11 @@ impl super::State for DefaultState {
             }
             Event::WindowEvent { ref event, .. } => match event {
                 WindowEvent::KeyboardInput {
-                    input:
-                        KeyboardInput {
-                            virtual_keycode: Some(key),
-                            state,
-                            ..
-                        },
+                    event: KeyEvent {
+                        physical_key: key,
+                        state,
+                        ..
+                    },
                     ..
                 } => self.camera_controller.process_keyboard(*key, *state),
                 WindowEvent::MouseWheel { delta, .. } => {
@@ -268,10 +267,13 @@ impl super::State for DefaultState {
             bytemuck::cast_slice(&[self.camera_uniform]),
         );
 
-        // Update the light
+        // Update the light - make animation frame-rate independent
         let old_position: cgmath::Vector3<_> = self.light_uniform.position.into();
+        // Rotate at 60 degrees per second instead of 1 degree per frame
+        let rotation_speed = 60.0; // degrees per second
+        let angle = rotation_speed * dt.as_secs_f32();
         self.light_uniform.position =
-            (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(1.0))
+            (cgmath::Quaternion::from_axis_angle((0.0, 1.0, 0.0).into(), cgmath::Deg(angle))
                 * old_position)
                 .into();
         queue.write_buffer(
@@ -289,7 +291,7 @@ impl super::State for DefaultState {
         let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("Render Pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
+                view,
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color {
@@ -298,17 +300,20 @@ impl super::State for DefaultState {
                         b: 0.3,
                         a: 1.0,
                     }),
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 },
+                depth_slice: None,
             })],
             depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                 view: &self.depth_texture.view,
                 depth_ops: Some(wgpu::Operations {
                     load: wgpu::LoadOp::Clear(1.0),
-                    store: true,
+                    store: wgpu::StoreOp::Store,
                 }),
                 stencil_ops: None,
             }),
+            occlusion_query_set: None,
+            timestamp_writes: None,
         });
 
         render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));

@@ -29,7 +29,7 @@ impl LightPipeline {
                 source: wgpu::ShaderSource::Wgsl(include_str!("light.wgsl").into()),
             };
             render::create_render_pipeline(
-                &device,
+                device,
                 &layout,
                 config.format,
                 Some(texture::Texture::DEPTH_FORMAT),
